@@ -1,0 +1,266 @@
+import Foundation
+import Vapor
+import NIOCore
+import NIOPosix
+
+/// WebSocket server that handles communication between Swift backend and JavaScript frontend
+/// Implements Neutralino's lightweight HTTP/WebSocket communication patterns
+@available(macOS 12.0, *)
+public actor WebServer {
+    
+    // MARK: - Private Properties
+    
+    private let configuration: ServerConfiguration
+    private var app: Application?
+    private var connectedClients: [WebSocket] = []
+    private let messageHandler: MessageHandler
+    
+    // MARK: - Initialization
+    
+    /// Initialize the WebSocket server
+    /// - Parameter configuration: Server configuration settings
+    public init(configuration: ServerConfiguration) {
+        self.configuration = configuration
+        self.messageHandler = MessageHandler()
+    }
+    
+    // MARK: - Public Interface
+    
+    /// Start the WebSocket server
+    public func start() async throws {
+        guard app == nil else {
+            throw SwiftralinoError.webServerFailed("Server already running")
+        }
+        
+        do {
+            app = try await Application.make(.development)
+            guard let app = app else {
+                throw SwiftralinoError.webServerFailed("Failed to create Vapor application")
+            }
+            
+            // Configure the server
+            configureRoutes(app)
+            configureWebSocketHandlers(app)
+            
+            // Start server
+            try await app.server.start(address: .hostname(configuration.host, port: configuration.port))
+            print("📡 WebSocket server started on \(configuration.host):\(configuration.port)")
+            
+        } catch {
+            throw SwiftralinoError.webServerFailed("Failed to start server: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Stop the WebSocket server
+    public func stop() async {
+        guard let app = app else { return }
+        
+        // Close all connected WebSocket clients
+        await closeAllConnections()
+        
+        // Shutdown the server
+        await app.server.shutdown()
+        self.app = nil
+        
+        print("📡 WebSocket server stopped")
+    }
+    
+    /// Broadcast a message to all connected clients
+    /// - Parameter message: The message to broadcast
+    public func broadcast(message: SwiftralinoMessage) async {
+        let jsonData = try? JSONEncoder().encode(message)
+        let jsonString = jsonData.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        
+        for client in connectedClients {
+            try? await client.send(jsonString)
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func configureRoutes(_ app: Application) {
+        // Serve static files for the frontend
+        app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+        
+        // Health check endpoint
+        app.get("health") { req async in
+            return ["status": "ok", "timestamp": "\(Date().timeIntervalSince1970)"]
+        }
+        
+        // API endpoints for Swift backend functionality
+        app.get("api", "system", "info") { [weak self] req async -> [String: String] in
+            let info = await self?.handleSystemInfo() ?? [:]
+            // Convert to [String: String] for proper encoding
+            return info.mapValues { "\($0)" }
+        }
+    }
+    
+    private func configureWebSocketHandlers(_ app: Application) {
+        // WebSocket bridge endpoint
+        app.webSocket("bridge") { [weak self] req, ws in
+            await self?.handleWebSocketConnection(ws)
+        }
+    }
+    
+    private func handleWebSocketConnection(_ ws: WebSocket) async {
+        // Add client to connected array
+        connectedClients.append(ws)
+        
+        print("🔌 WebSocket client connected (total: \(connectedClients.count))")
+        
+        // Send welcome message
+        let welcomeMessage = SwiftralinoMessage(
+            id: UUID().uuidString,
+            type: .system,
+            action: "welcome",
+            data: ["message": "Connected to Swiftralino backend"]
+        )
+        
+        if let jsonData = try? JSONEncoder().encode(welcomeMessage),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            try? await ws.send(jsonString)
+        }
+        
+        // Handle incoming messages
+        ws.onText { [weak self] ws, text in
+            await self?.handleIncomingMessage(text, from: ws)
+        }
+        
+        // Handle client disconnection
+        ws.onClose.whenComplete { [weak self] _ in
+            Task {
+                await self?.handleClientDisconnection(ws)
+            }
+        }
+    }
+    
+    private func handleIncomingMessage(_ text: String, from ws: WebSocket) async {
+        guard let data = text.data(using: .utf8),
+              let message = try? JSONDecoder().decode(SwiftralinoMessage.self, from: data) else {
+            await sendErrorResponse(to: ws, error: "Invalid message format")
+            return
+        }
+        
+        print("📨 Received message: \(message.action) (\(message.type))")
+        
+        // Process message through handler
+        let response = await messageHandler.handle(message)
+        
+        // Send response back to client
+        if let jsonData = try? JSONEncoder().encode(response),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            try? await ws.send(jsonString)
+        }
+    }
+    
+    private func handleClientDisconnection(_ ws: WebSocket) async {
+        connectedClients.removeAll { $0 === ws }
+        print("🔌 WebSocket client disconnected (total: \(connectedClients.count))")
+    }
+    
+    private func closeAllConnections() async {
+        for client in connectedClients {
+            try? await client.close()
+        }
+        connectedClients.removeAll()
+    }
+    
+    private func sendErrorResponse(to ws: WebSocket, error: String) async {
+        let errorMessage = SwiftralinoMessage(
+            id: UUID().uuidString,
+            type: .error,
+            action: "error",
+            data: ["message": error]
+        )
+        
+        if let jsonData = try? JSONEncoder().encode(errorMessage),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            try? await ws.send(jsonString)
+        }
+    }
+    
+    private func handleSystemInfo() async -> [String: Any] {
+        return [
+            "platform": "swift",
+            "version": "0.1.0",
+            "timestamp": Date().timeIntervalSince1970,
+            "processId": ProcessInfo.processInfo.processIdentifier
+        ]
+    }
+}
+
+// MARK: - Message Types
+
+/// Standard message format for communication between Swift backend and JavaScript frontend
+public struct SwiftralinoMessage: Codable {
+    public let id: String
+    public let type: MessageType
+    public let action: String
+    public let data: [String: AnyCodable]?
+    
+    public init(id: String, type: MessageType, action: String, data: [String: Any]? = nil) {
+        self.id = id
+        self.type = type
+        self.action = action
+        self.data = data?.mapValues { AnyCodable($0) }
+    }
+}
+
+/// Message types for categorizing communication
+public enum MessageType: String, Codable {
+    case system = "system"
+    case api = "api"
+    case event = "event"
+    case response = "response"
+    case error = "error"
+}
+
+/// Type-erased wrapper for JSON encoding/decoding
+public struct AnyCodable: Codable {
+    public let value: Any
+    
+    public init(_ value: Any) {
+        self.value = value
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+            value = dictionary.mapValues { $0.value }
+        } else {
+            value = NSNull()
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch value {
+        case let bool as Bool:
+            try container.encode(bool)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let string as String:
+            try container.encode(string)
+        case let array as [Any]:
+            try container.encode(array.map { AnyCodable($0) })
+        case let dictionary as [String: Any]:
+            try container.encode(dictionary.mapValues { AnyCodable($0) })
+        default:
+            try container.encodeNil()
+        }
+    }
+} 

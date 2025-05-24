@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swiftralino}",
+            "name": "Debug swiftralino",
+            "program": "${workspaceFolder:swiftralino}/.build/debug/swiftralino",
+            "preLaunchTask": "swift: Build Debug swiftralino"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swiftralino}",
+            "name": "Release swiftralino",
+            "program": "${workspaceFolder:swiftralino}/.build/release/swiftralino",
+            "preLaunchTask": "swift: Build Release swiftralino"
+        }
+    ]
+}
