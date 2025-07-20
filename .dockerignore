@@ -1,0 +1,89 @@
+# Build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+.swiftpm/
+
+# Git
+.git/
+.gitignore
+.gitmodules
+
+# Documentation
+*.md
+docs/
+DEPLOY.md
+README.md
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+.tmp/
+tmp/
+.DS_Store
+Thumbs.db
+
+# Dependencies (will be resolved during build)
+node_modules/
+.npm/
+.yarn/
+
+# Test files
+Tests/
+test/
+__tests__/
+*.test.*
+*.spec.*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files (not needed in build context)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Backup files
+*.bak
+*.backup
+backup/
+
+# Frontend build artifacts (we'll build these inside container if needed)
+Sources/SwiftralinoWebView/dist/
+Sources/SwiftralinoWebView/node_modules/
+Sources/SwiftralinoWebView/.next/
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+
+# Coverage reports
+coverage/
+.nyc_output/
+*.lcov
+
+# Linting
+.eslintcache
+
+# Package manager files we don't need
+package-lock.json
+yarn.lock
+Sources/SwiftralinoWebView/package-lock.json 

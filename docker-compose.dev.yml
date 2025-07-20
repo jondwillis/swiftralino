@@ -1,0 +1,70 @@
+services:
+  # Swiftralino development server with live reload
+  swiftralino-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: swiftralino-dev
+    ports:
+      - "8080:8080"
+      - "8090:8090"  # Debug port
+    environment:
+      - SWIFTRALINO_HOST=0.0.0.0
+      - SWIFTRALINO_PORT=8080
+      - SWIFTRALINO_TLS=false
+      - SWIFTRALINO_ENV=development
+      - SWIFT_LOG_LEVEL=debug
+    volumes:
+      # Mount source for live reload
+      - ./Sources:/app/Sources:ro
+      - ./Package.swift:/app/Package.swift:ro
+      - ./Package.resolved:/app/Package.resolved:ro
+      - ./Public:/app/Public:rw
+      # Development data
+      - swiftralino-dev-data:/app/data
+    networks:
+      - swiftralino-dev-network
+    stdin_open: true
+    tty: true
+    command: ["swift", "run", "swiftralino-headless"]
+
+  # Frontend development server (optional)
+  frontend-dev:
+    image: node:20-alpine
+    container_name: swiftralino-frontend-dev
+    working_dir: /app
+    ports:
+      - "3000:3000"  # Vite dev server
+    environment:
+      - VITE_WS_URL=ws://localhost:8080/bridge
+      - NODE_ENV=development
+    volumes:
+      - ./Sources/SwiftralinoWebView:/app:cached
+      - frontend-node-modules:/app/node_modules
+    networks:
+      - swiftralino-dev-network
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    profiles:
+      - frontend
+
+  # Redis for caching (optional for development)
+  redis:
+    image: redis:7-alpine
+    container_name: swiftralino-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - swiftralino-dev-network
+    profiles:
+      - cache
+
+volumes:
+  swiftralino-dev-data:
+    driver: local
+  frontend-node-modules:
+    driver: local
+
+networks:
+  swiftralino-dev-network:
+    driver: bridge 

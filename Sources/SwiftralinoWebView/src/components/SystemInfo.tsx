@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useSwiftral } from '@/lib/swiftral-context';
+import { useSwiftralino } from '@/lib/swiftralino-context';
 
 export const SystemInfo: React.FC = () => {
-  const { client, isConnected } = useSwiftral();
+  const { client, isConnected } = useSwiftralino();
   const [systemInfo, setSystemInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useSwiftral } from '@/lib/swiftral-context';
+import { useSwiftralino } from '@/lib/swiftralino-context';
 
 export const ProcessRunner: React.FC = () => {
-  const { client, isConnected } = useSwiftral();
+  const { client, isConnected } = useSwiftralino();
   const [command, setCommand] = useState('echo');
   const [args, setArgs] = useState('Hello from Swift!');
   const [result, setResult] = useState<any>(null);

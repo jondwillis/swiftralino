@@ -2,6 +2,7 @@ import Foundation
 import Vapor
 import NIOCore
 import NIOPosix
+import NIOSSL
 
 /// WebSocket server that handles communication between Swift backend and JavaScript frontend
 /// Implements Neutralino's lightweight HTTP/WebSocket communication patterns
@@ -38,13 +39,19 @@ public actor WebServer {
                 throw SwiftralinoError.webServerFailed("Failed to create Vapor application")
             }
             
+            // Configure TLS if enabled
+            if configuration.enableTLS {
+                try configureTLS(app)
+            }
+            
             // Configure the server
             configureRoutes(app)
             configureWebSocketHandlers(app)
             
             // Start server
+            let scheme = configuration.enableTLS ? "https" : "http"
             try await app.server.start(address: .hostname(configuration.host, port: configuration.port))
-            print("📡 WebSocket server started on \(configuration.host):\(configuration.port)")
+            print("📡 WebSocket server started on \(scheme)://\(configuration.host):\(configuration.port)")
             
         } catch {
             throw SwiftralinoError.webServerFailed("Failed to start server: \(error.localizedDescription)")
@@ -212,6 +219,45 @@ public actor WebServer {
             "timestamp": Date().timeIntervalSince1970,
             "processId": ProcessInfo.processInfo.processIdentifier
         ]
+    }
+    
+    // MARK: - TLS Configuration
+    
+    private func configureTLS(_ app: Application) throws {
+        // Certificate paths in order of preference
+        let certPaths = [
+            ("/app/ssl/cert.pem", "/app/ssl/key.pem"),
+            ("/app/ssl/server.crt", "/app/ssl/server.key"),
+            // Let's Encrypt path
+            ("/etc/letsencrypt/live/\(ProcessInfo.processInfo.environment["DOMAIN"] ?? "localhost")/cert.pem",
+             "/etc/letsencrypt/live/\(ProcessInfo.processInfo.environment["DOMAIN"] ?? "localhost")/privkey.pem"),
+        ]
+        
+        for (certPath, keyPath) in certPaths {
+            if FileManager.default.fileExists(atPath: certPath) && 
+               FileManager.default.fileExists(atPath: keyPath) {
+                
+                print("🔒 Configuring TLS with certificate: \(certPath)")
+                
+                do {
+                    // Configure Vapor for TLS
+                    let certificate = try NIOSSLCertificate(file: certPath, format: .pem)
+                    let privateKey = try NIOSSLPrivateKey(file: keyPath, format: .pem)
+                    
+                    app.http.server.configuration.tlsConfiguration = TLSConfiguration.makeServerConfiguration(
+                        certificateChain: [.certificate(certificate)],
+                        privateKey: .privateKey(privateKey)
+                    )
+                    
+                    return
+                } catch {
+                    print("⚠️ Failed to load certificate \(certPath): \(error)")
+                    continue
+                }
+            }
+        }
+        
+        throw SwiftralinoError.webServerFailed("TLS enabled but no valid certificates found. Please provide cert.pem and key.pem in /app/ssl/ or disable TLS.")
     }
 }
 

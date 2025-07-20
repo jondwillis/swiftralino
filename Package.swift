@@ -19,6 +19,11 @@ let package = Package(
             name: "swiftralino-demo",
             targets: ["Swiftralino"]
         ),
+        // Headless server for Docker deployment
+        .executable(
+            name: "swiftralino-headless",
+            targets: ["SwiftralinoHeadless"]
+        ),
         // Core library for reusability
         .library(
             name: "SwiftralinoCore",
@@ -36,10 +41,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // WebSocket and HTTP server
+        // WebSocket and HTTP server (includes WebSocketKit)
         .package(url: "https://github.com/vapor/vapor.git", from: "4.89.0"),
-        // WebSocket client support
-        .package(url: "https://github.com/daltoniam/Starscream.git", from: "4.0.0"),
         // Command line argument parsing for CLI
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
     ],
@@ -51,7 +54,8 @@ let package = Package(
                 "SwiftralinoCore",
                 "SwiftralinoPlatform",
                 .product(name: "Vapor", package: "vapor"),
-            ]
+            ],
+            path: "Sources/Swiftralino"
         ),
         // CLI tool target
         .executableTarget(
@@ -61,15 +65,26 @@ let package = Package(
                 "SwiftralinoPlatform",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Vapor", package: "vapor"),
-            ]
+            ],
+            path: "Sources/SwiftralinoCLI"
+        ),
+        // Headless server target for Docker deployment
+        .executableTarget(
+            name: "SwiftralinoHeadless",
+            dependencies: [
+                "SwiftralinoCore",
+                .product(name: "Vapor", package: "vapor"),
+            ],
+            path: "Sources/SwiftralinoHeadless"
         ),
         // Core library containing the framework
         .target(
             name: "SwiftralinoCore",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
-                .product(name: "Starscream", package: "Starscream"),
-            ]
+                // Using Vapor's built-in WebSocketKit instead of Starscream
+            ],
+            path: "Sources/SwiftralinoCore"
         ),
         // Platform-specific implementations
         .target(
@@ -77,15 +92,17 @@ let package = Package(
             dependencies: [
                 "SwiftralinoCore",
                 .product(name: "Vapor", package: "vapor"),
-                .product(name: "Starscream", package: "Starscream"),
-            ]
+                // Using Vapor's built-in WebSocketKit instead of Starscream
+            ],
+            path: "Sources/SwiftralinoPlatform"
         ),
         // Plugin API system
         .target(
             name: "SwiftralinoAPI",
             dependencies: [
                 "SwiftralinoCore",
-            ]
+            ],
+            path: "Sources/SwiftralinoAPI"
         ),
         // Tests
         .testTarget(

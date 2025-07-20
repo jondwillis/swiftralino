@@ -1,12 +1,12 @@
 import React from 'react';
-import { useSwiftral } from '@/lib/swiftral-context';
+import { useSwiftralino } from '@/lib/swiftralino-context';
 import { ConnectionStatus } from './ConnectionStatus';
 import { SystemInfo } from './SystemInfo';
 import { FileExplorer } from './FileExplorer';
 import { ProcessRunner } from './ProcessRunner';
 
 export const MainLayout: React.FC = () => {
-  const { connectionStatus } = useSwiftral();
+  const { connectionStatus } = useSwiftralino();
 
   return (
     <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'>
