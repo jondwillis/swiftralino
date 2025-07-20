@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+
+# Production
+dist/
+build/
+
+# Logs
+*.log
+
+# Config files that should keep original formatting
+.eslintrc.json
+tsconfig.json
+tsconfig.*.json
+vite.config.ts
+vitest.config.ts
+tailwind.config.js
+postcss.config.js
+
+# Generated files
+*.d.ts
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Environment files
+.env*
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db 

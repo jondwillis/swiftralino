@@ -1,20 +1,29 @@
 # ⚡ Swiftralino
 
-A lightweight cross-platform desktop application framework that implements Neutralino's paradigm using Swift backend with web frontend, delivering native performance without Electron's bloat.
+A lightweight cross-platform desktop application framework that implements
+Neutralino's paradigm using Swift backend with web frontend, delivering native
+performance without Electron's bloat.
 
 ## 🎯 Project Goals
 
-Swiftralino implements the vision outlined in our research to create a Swift-based alternative to Electron and similar frameworks by:
+Swiftralino implements the vision outlined in our research to create a
+Swift-based alternative to Electron and similar frameworks by:
 
-- **Leveraging Swift's Performance**: Utilizing Swift's compiled nature, ARC memory management, and modern concurrency features
-- **Cross-Platform Support**: Targeting macOS, Linux, and Windows with platform-specific WebView implementations
-- **Lightweight Communication**: Implementing efficient WebSocket-based IPC between Swift backend and web frontend
-- **Security-First Architecture**: Following Tauri's security model with actor-based state management
-- **Native Integration**: Providing seamless access to system APIs through type-safe Swift interfaces
+- **Leveraging Swift's Performance**: Utilizing Swift's compiled nature, ARC
+  memory management, and modern concurrency features
+- **Cross-Platform Support**: Targeting macOS, Linux, and Windows with
+  platform-specific WebView implementations
+- **Lightweight Communication**: Implementing efficient WebSocket-based IPC
+  between Swift backend and web frontend
+- **Security-First Architecture**: Following Tauri's security model with
+  actor-based state management
+- **Native Integration**: Providing seamless access to system APIs through
+  type-safe Swift interfaces
 
 ## 🏗️ Architecture
 
-Swiftralino follows a hybrid architecture combining Tauri's security model with Neutralino's lightweight communication patterns:
+Swiftralino follows a hybrid architecture combining Tauri's security model with
+Neutralino's lightweight communication patterns:
 
 ```
 ┌─────────────────┐     WebSocket      ┌─────────────────┐
@@ -33,7 +42,8 @@ Swiftralino follows a hybrid architecture combining Tauri's security model with 
 ### Core Components
 
 1. **SwiftralinoApp**: Main application actor coordinating all components
-2. **WebServer**: Vapor-based WebSocket server handling frontend-backend communication
+2. **WebServer**: Vapor-based WebSocket server handling frontend-backend
+   communication
 3. **WebViewManager**: Platform-specific WebView abstraction layer
 4. **MessageHandler**: Processes API calls with type-safe contracts
 5. **APIRegistry**: Extensible system for registering native Swift APIs
@@ -47,6 +57,18 @@ Swiftralino follows a hybrid architecture combining Tauri's security model with 
 - Linux (experimental WebView support)
 
 ### Building and Running
+
+0. Swift Version a. Download swiftly
+
+```bash
+curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg && \
+installer -pkg swiftly.pkg -target CurrentUserHomeDirectory && \
+~/.swiftly/bin/swiftly init --quiet-shell-followup && \
+. "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh" && \
+hash -r
+```
+
+Otherwise, download Swift 6.1.2+
 
 1. **Clone and navigate to the project:**
    ```bash
@@ -74,11 +96,11 @@ Swiftralino follows a hybrid architecture combining Tauri's security model with 
 
 ## 📱 Platform Support
 
-| Platform | WebView | Status | Implementation |
-|----------|---------|--------|----------------|
-| macOS    | WKWebView | ✅ Working | Native Cocoa integration |
-| Linux    | WebKitGTK | 🚧 Planned | SwiftGtk bindings |
-| Windows  | WebView2 | 🚧 Planned | C++ interop or alternative |
+| Platform | WebView   | Status     | Implementation             |
+| -------- | --------- | ---------- | -------------------------- |
+| macOS    | WKWebView | ✅ Working | Native Cocoa integration   |
+| Linux    | WebKitGTK | 🚧 Planned | SwiftGtk bindings          |
+| Windows  | WebView2  | 🚧 Planned | C++ interop or alternative |
 
 ## 🛠️ Development
 
@@ -129,13 +151,13 @@ The JavaScript bridge provides easy access to Swift APIs:
 const info = await window.Swiftralino.system.info();
 
 // File operations
-const files = await window.Swiftralino.filesystem.readDirectory('/path');
+const files = await window.Swiftralino.filesystem.readDirectory("/path");
 
 // Process execution
-const result = await window.Swiftralino.process.execute('ls', ['-la']);
+const result = await window.Swiftralino.process.execute("ls", ["-la"]);
 
 // Custom API calls
-const response = await window.Swiftralino.callAPI('custom', { param: 'value' });
+const response = await window.Swiftralino.callAPI("custom", { param: "value" });
 ```
 
 ## 🎯 Performance Characteristics
@@ -162,23 +184,27 @@ Run the test suite:
 swift test
 ```
 
-For manual testing, the demo application provides interactive examples of all major features.
+For manual testing, the demo application provides interactive examples of all
+major features.
 
 ## 🗺️ Roadmap
 
 ### Phase 1: Core Architecture ✅
+
 - [x] WebSocket server implementation
 - [x] macOS WebView integration
 - [x] Basic API system (filesystem, system, process)
 - [x] Actor-based state management
 
 ### Phase 2: Platform Expansion 🚧
+
 - [ ] Linux WebView support (WebKitGTK)
 - [ ] Windows WebView support (WebView2)
 - [ ] Cross-platform build system
 - [ ] Enhanced security features
 
 ### Phase 3: Optimization & Polish 🔮
+
 - [ ] Performance optimizations
 - [ ] Advanced packaging
 - [ ] Developer tooling
@@ -196,7 +222,9 @@ We welcome contributions! Key areas of interest:
 
 ## 📚 Research Background
 
-This project implements the vision described in our research document, which identified Swift as an ideal candidate for lightweight desktop applications due to:
+This project implements the vision described in our research document, which
+identified Swift as an ideal candidate for lightweight desktop applications due
+to:
 
 - Superior performance characteristics compared to JavaScript runtimes
 - Memory safety without garbage collection overhead
@@ -212,11 +240,16 @@ MIT License - see LICENSE file for details.
 ## 🙏 Acknowledgments
 
 Inspired by:
-- [Neutralino.js](https://neutralino.js.org/) - Lightweight cross-platform app development
+
+- [Neutralino.js](https://neutralino.js.org/) - Lightweight cross-platform app
+  development
 - [Tauri](https://tauri.app/) - Rust-based application framework
-- [Electron](https://electronjs.org/) - The framework we aim to make more efficient
+- [Electron](https://electronjs.org/) - The framework we aim to make more
+  efficient
 
 Built with:
+
 - [Vapor](https://vapor.codes/) - Swift server framework
-- [Swift Package Manager](https://swift.org/package-manager/) - Dependency management
-- Modern web technologies for frontend development 
+- [Swift Package Manager](https://swift.org/package-manager/) - Dependency
+  management
+- Modern web technologies for frontend development

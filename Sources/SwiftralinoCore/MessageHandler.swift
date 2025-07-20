@@ -54,7 +54,7 @@ public actor MessageHandler {
         do {
             let result = try await api.execute(parameters: message.data)
             return SwiftralinoMessage(
-                id: UUID().uuidString,
+                id: message.id,
                 type: .response,
                 action: message.action,
                 data: result
@@ -71,14 +71,14 @@ public actor MessageHandler {
         switch message.action {
         case "ping":
             return SwiftralinoMessage(
-                id: UUID().uuidString,
+                id: message.id,
                 type: .response,
                 action: "pong",
                 data: ["timestamp": Date().timeIntervalSince1970]
             )
         case "version":
             return SwiftralinoMessage(
-                id: UUID().uuidString,
+                id: message.id,
                 type: .response,
                 action: "version",
                 data: ["version": "0.1.0", "platform": "swift"]
@@ -95,7 +95,7 @@ public actor MessageHandler {
         // Echo events back for now - in a real implementation,
         // this would handle application-specific events
         return SwiftralinoMessage(
-            id: UUID().uuidString,
+            id: message.id,
             type: .response,
             action: "event_received",
             data: ["original_action": message.action]
@@ -104,7 +104,7 @@ public actor MessageHandler {
     
     private func createErrorResponse(for message: SwiftralinoMessage, error: String) -> SwiftralinoMessage {
         return SwiftralinoMessage(
-            id: UUID().uuidString,
+            id: message.id,
             type: .error,
             action: "error",
             data: [

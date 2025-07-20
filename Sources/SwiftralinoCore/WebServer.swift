@@ -55,11 +55,22 @@ public actor WebServer {
     public func stop() async {
         guard let app = app else { return }
         
-        // Close all connected WebSocket clients
+        print("📡 Stopping WebSocket server...")
+        
+        // Close all connected WebSocket clients first
         await closeAllConnections()
         
-        // Shutdown the server
-        await app.server.shutdown()
+        // Give clients time to disconnect cleanly
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        
+        // Shutdown the server gracefully
+        do {
+            await app.server.shutdown()
+        } catch {
+            print("⚠️ Error during server shutdown: \(error)")
+        }
+        
+        // Clear the app reference
         self.app = nil
         
         print("📡 WebSocket server stopped")
@@ -81,6 +92,15 @@ public actor WebServer {
     private func configureRoutes(_ app: Application) {
         // Serve static files for the frontend
         app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+        
+        // Root route - serve index.html
+        app.get { req async throws -> Response in
+            let path = app.directory.publicDirectory + "index.html"
+            guard let data = FileManager.default.contents(atPath: path) else {
+                throw Abort(.notFound, reason: "index.html not found")
+            }
+            return Response(status: .ok, headers: ["Content-Type": "text/html"], body: .init(data: data))
+        }
         
         // Health check endpoint
         app.get("health") { req async in
@@ -159,10 +179,16 @@ public actor WebServer {
     }
     
     private func closeAllConnections() async {
-        for client in connectedClients {
-            try? await client.close()
-        }
+        let clients = connectedClients
         connectedClients.removeAll()
+        
+        for client in clients {
+            do {
+                try await client.close(code: .goingAway)
+            } catch {
+                // Ignore errors during cleanup
+            }
+        }
     }
     
     private func sendErrorResponse(to ws: WebSocket, error: String) async {

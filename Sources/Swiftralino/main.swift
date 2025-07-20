@@ -1,5 +1,6 @@
 import Foundation
 import SwiftralinoCore
+import SwiftralinoPlatform
 
 #if canImport(Cocoa)
 import Cocoa
@@ -39,18 +40,69 @@ struct SwiftralinoDemo {
             webView: webViewConfig
         )
         
-        // Create and launch the Swiftralino application
-        let swiftralinoApp = SwiftralinoApp(configuration: appConfig)
+        // Create WebView manager and Swiftralino application
+        let webViewManager = WebViewManager(configuration: webViewConfig)
+        let swiftralinoApp = SwiftralinoApp(configuration: appConfig, webViewManager: webViewManager)
         delegate.swiftralinoApp = swiftralinoApp
         
-        // Set up signal handling for graceful shutdown
-        let signalSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
-        signalSource.setEventHandler {
+        // Set up signal handling for graceful shutdown - improved version
+        var signalSourceInt: DispatchSourceSignal?
+        var signalSourceTerm: DispatchSourceSignal?
+        var isShuttingDown = false
+        var shutdownSemaphore = DispatchSemaphore(value: 0)
+        
+        let performShutdown = { @MainActor in
+            guard !isShuttingDown else { return }
+            isShuttingDown = true
+            
             print("\n🛑 Received shutdown signal")
-            delegate.terminateApp()
+            
+            // Cancel signal sources first to prevent race conditions
+            signalSourceInt?.cancel()
+            signalSourceTerm?.cancel()
+            
+            // Perform shutdown in a task that completes before termination
+            Task {
+                await swiftralinoApp.shutdown()
+                
+                // Signal that shutdown is complete
+                shutdownSemaphore.signal()
+            }
         }
+        
+        let shutdownHandler = {
+            DispatchQueue.main.async {
+                Task { @MainActor in
+                    await performShutdown()
+                }
+            }
+            
+            // Wait for shutdown to complete before proceeding
+            _ = shutdownSemaphore.wait(timeout: .now() + 5.0)
+            
+            // Use different termination strategies based on build type
+            #if DEBUG
+            print("🔄 Development mode: exiting cleanly...")
+            // Give a moment for any final cleanup
+            Thread.sleep(forTimeInterval: 0.1)
+            Foundation.exit(0)
+            #else
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+            #endif
+        }
+        
+        signalSourceInt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global(qos: .userInitiated))
+        signalSourceTerm = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global(qos: .userInitiated))
+        
+        signalSourceInt?.setEventHandler(handler: shutdownHandler)
+        signalSourceTerm?.setEventHandler(handler: shutdownHandler)
+        
         signal(SIGINT, SIG_IGN)
-        signalSource.resume()
+        signal(SIGTERM, SIG_IGN)
+        signalSourceInt?.resume()
+        signalSourceTerm?.resume()
         
         // Launch the Swiftralino application in background
         Task {
@@ -63,8 +115,17 @@ struct SwiftralinoDemo {
                 
             } catch {
                 print("❌ Failed to start application: \(error)")
-                DispatchQueue.main.async {
+                
+                // Clean up signal sources on error
+                signalSourceInt?.cancel()
+                signalSourceTerm?.cancel()
+                
+                await MainActor.run {
+                    #if DEBUG
+                    Foundation.exit(1)
+                    #else
                     NSApp.terminate(nil)
+                    #endif
                 }
             }
         }
