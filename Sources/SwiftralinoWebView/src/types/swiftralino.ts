@@ -115,7 +115,7 @@ export interface SwiftralinoClient extends SwiftralinoAPI {
     event: K,
     callback: (data?: SwiftralinoEventData[K]) => void
   ): void;
-  sendMessage(message: SwiftralinoMessage): Promise<SwiftralinoResponse>;
+  sendMessage<T = unknown>(message: SwiftralinoMessage): Promise<SwiftralinoResponse<T>>;
 }
 
 export interface SwiftralinoConfig {

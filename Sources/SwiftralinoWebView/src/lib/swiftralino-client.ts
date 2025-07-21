@@ -97,16 +97,19 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     this.eventListeners.get(event)?.delete(callback as (data?: unknown) => void);
   }
 
-  async sendMessage(message: SwiftralinoMessage): Promise<SwiftralinoResponse> {
+  async sendMessage<T = unknown>(message: SwiftralinoMessage): Promise<SwiftralinoResponse<T>> {
     if (!this.isConnectedState || !this.ws) {
       throw new Error('Not connected to backend');
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<SwiftralinoResponse<T>>((resolve, reject) => {
       const messageId = message.id || crypto.randomUUID();
       const messageWithId = { ...message, id: messageId };
 
-      this.pendingRequests.set(messageId, { resolve, reject });
+      this.pendingRequests.set(messageId, {
+        resolve: resolve as (value: SwiftralinoResponse) => void,
+        reject,
+      });
 
       const { ws } = this;
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -128,7 +131,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
 
   // API Methods
   async ping(): Promise<SwiftralinoResponse<{ timestamp: number }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ timestamp: number }>({
       id: crypto.randomUUID(),
       type: 'system',
       action: 'ping',
@@ -136,7 +139,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   }
 
   async version(): Promise<SwiftralinoResponse<{ version: string; platform: string }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ version: string; platform: string }>({
       id: crypto.randomUUID(),
       type: 'system',
       action: 'version',
@@ -144,7 +147,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   }
 
   async readDirectory(path: string): Promise<SwiftralinoResponse<{ files: string[] }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ files: string[] }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'filesystem',
@@ -153,7 +156,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   }
 
   async readFile(path: string): Promise<SwiftralinoResponse<{ content: string }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ content: string }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'filesystem',
@@ -171,7 +174,11 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
       error: string;
     }>
   > {
-    return this.sendMessage({
+    return this.sendMessage<{
+      exitCode: number;
+      output: string;
+      error: string;
+    }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'process',
@@ -187,7 +194,12 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
       uptime: number;
     }>
   > {
-    return this.sendMessage({
+    return this.sendMessage<{
+      operatingSystem: string;
+      hostName: string;
+      processIdentifier: number;
+      uptime: number;
+    }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'system',
@@ -201,7 +213,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     host?: string;
     port?: number;
   }): Promise<SwiftralinoResponse<{ status: string; clusterName: string }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ status: string; clusterName: string }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -223,7 +235,15 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
       }>;
     }>
   > {
-    return this.sendMessage({
+    return this.sendMessage<{
+      platforms: Array<{
+        id: string;
+        deviceName: string;
+        platform: string;
+        version: string;
+        capabilities: string[];
+      }>;
+    }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -241,7 +261,14 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
       }>;
     }>
   > {
-    return this.sendMessage({
+    return this.sendMessage<{
+      results: Array<{
+        platformId: string;
+        success: boolean;
+        output: string;
+        timestamp: number;
+      }>;
+    }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -253,7 +280,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     key: string,
     data: string
   ): Promise<SwiftralinoResponse<{ status: string; key: string }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ status: string; key: string }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -264,7 +291,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   async retrieveDataDistributed(
     key: string
   ): Promise<SwiftralinoResponse<{ key: string; data: string | null }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ key: string; data: string | null }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -275,7 +302,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   async joinCluster(
     endpoint: string
   ): Promise<SwiftralinoResponse<{ status: string; endpoint: string }>> {
-    return this.sendMessage({
+    return this.sendMessage<{ status: string; endpoint: string }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
@@ -286,7 +313,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   async getDistributedStatus(): Promise<
     SwiftralinoResponse<{ initialized: boolean; [key: string]: unknown }>
   > {
-    return this.sendMessage({
+    return this.sendMessage<{ initialized: boolean; [key: string]: unknown }>({
       id: crypto.randomUUID(),
       type: 'api',
       action: 'distributed',
