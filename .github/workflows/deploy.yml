@@ -204,7 +204,7 @@ jobs:
       continue-on-error: true
 
     - name: Update release with artifacts
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           swiftralino-${{ github.ref_name }}-linux.tar.gz
