@@ -1,0 +1,56 @@
+# Set to true to add reviewers to pull requests
+addReviewers: true
+
+# Set to true to add assignees to pull requests  
+addAssignees: false
+
+# A list of reviewers to be added to pull requests (GitHub user name)
+reviewers:
+  - "@me"
+
+# A list of assignees to be added to pull requests (GitHub user name)
+assignees: []
+
+# A number of reviewers added to the pull request
+# Set 0 to add all the reviewers (default: 0)
+numberOfReviewers: 1
+
+# A number of assignees added to the pull request
+# Set to 0 to add all the assignees (default: 0) 
+numberOfAssignees: 0
+
+# A list of keywords to be skipped the process that add reviewers if pull requests include it
+skipKeywords:
+  - wip
+  - draft
+
+# Set to true to add reviewers when pull request has multiple files
+# Set to false to add reviewers when pull request has only one file (default: false)
+useReviewGroups: false
+
+# A list of review groups with specific reviewers for different file patterns
+reviewGroups:
+  swift-core:
+    reviewers:
+      - "@me"
+    patterns:
+      - "Sources/SwiftralinoCore/**/*"
+      - "Sources/SwiftralinoAPI/**/*"
+
+  platform:
+    reviewers:
+      - "@me"  
+    patterns:
+      - "Sources/SwiftralinoPlatform/**/*"
+
+  web-component:
+    reviewers:
+      - "@me"
+    patterns:
+      - "Sources/SwiftralinoWebView/**/*"
+
+  tests:
+    reviewers:
+      - "@me"
+    patterns:
+      - "Tests/**/*" 

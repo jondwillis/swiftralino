@@ -1,0 +1,60 @@
+# Swift Core Components
+'area/swift-core':
+  - 'Sources/SwiftralinoCore/**/*'
+  - 'Sources/SwiftralinoAPI/**/*'
+
+# Platform Components
+'area/platform':
+  - 'Sources/SwiftralinoPlatform/**/*'
+
+# CLI Components  
+'area/cli':
+  - 'Sources/SwiftralinoCLI/**/*'
+
+# Web Components
+'area/web':
+  - 'Sources/SwiftralinoWebView/**/*'
+
+# Tests
+'area/tests':
+  - 'Tests/**/*'
+
+# Build & CI
+'area/build':
+  - 'Package.swift'
+  - 'Package.resolved'
+  - 'Dockerfile'
+  - 'docker-compose*.yml'
+  - 'Makefile'
+  - '.github/workflows/**/*'
+  - '.swiftlint.yml'
+
+# Configuration
+'area/config':
+  - 'config/**/*'
+  - '.github/**/*'
+  - '*.md'
+  - '*.yml'
+  - '*.yaml'
+
+# Dependencies
+'dependencies':
+  - 'Package.swift'
+  - 'Package.resolved'
+  - 'Sources/SwiftralinoWebView/package.json'
+  - 'Sources/SwiftralinoWebView/package-lock.json'
+  - 'Sources/SwiftralinoWebView/bun.lockb'
+
+# Documentation
+'documentation':
+  - '**/*.md'
+  - 'docs/**/*'
+
+# Breaking changes (require careful review)
+'breaking-change':
+  - 'Sources/SwiftralinoAPI/**/*'
+
+# Platform-specific testing (triggers expensive macOS/Windows CI)
+'platform-test':
+  - 'Sources/SwiftralinoPlatform/**/*'
+  - 'Package.swift' 

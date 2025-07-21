@@ -1,0 +1,230 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Docker build and push (Linux - cheapest)
+  build-and-push-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Linux release artifacts (cheaper alternative)
+  create-linux-release-artifacts:
+    name: Create Linux Release Artifacts
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    container:
+      image: swift:5.9
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: |
+        apt-get update
+        apt-get install -y libssl-dev
+
+    - name: Cache Swift Package Manager dependencies
+      uses: actions/cache@v4
+      with:
+        path: .build
+        key: linux-spm-${{ hashFiles('Package.resolved') }}
+        restore-keys: |
+          linux-spm-
+
+    - name: Build release binaries (Linux)
+      run: |
+        swift build -c release --verbose
+
+    - name: Build web component
+      run: |
+        cd Sources/SwiftralinoWebView
+        # Install Node.js for web build
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+        npm ci
+        npm run build
+
+    - name: Create Linux release archive
+      run: |
+        mkdir -p release-artifacts-linux
+        
+        # Copy Swift binaries
+        cp .build/release/swiftralino release-artifacts-linux/
+        cp .build/release/swiftralino-demo release-artifacts-linux/
+        cp .build/release/swiftralino-headless release-artifacts-linux/
+        
+        # Copy web assets
+        cp -r Sources/SwiftralinoWebView/dist release-artifacts-linux/web-assets
+        
+        # Copy documentation
+        cp README.md release-artifacts-linux/
+        cp Framework-Summary.md release-artifacts-linux/
+        
+        # Create tarball
+        tar -czf swiftralino-${{ github.ref_name }}-linux.tar.gz -C release-artifacts-linux .
+
+    - name: Upload Linux release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts-linux
+        path: |
+          swiftralino-${{ github.ref_name }}-linux.tar.gz
+        retention-days: 30
+
+  # macOS release artifacts (only for official releases)
+  create-macos-release-artifacts:
+    name: Create macOS Release Artifacts
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha')
+    runs-on: macos-14
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Cache Swift Package Manager dependencies
+      uses: actions/cache@v4
+      with:
+        path: .build
+        key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+
+    - name: Build release binaries (macOS)
+      run: |
+        swift build -c release --verbose
+
+    - name: Build web component
+      run: |
+        cd Sources/SwiftralinoWebView
+        # Use npm as fallback if bun fails in CI
+        if command -v bun &> /dev/null; then
+          bun install --frozen-lockfile
+          bun run build
+        else
+          npm ci
+          npm run build
+        fi
+
+    - name: Create macOS release archive
+      run: |
+        mkdir -p release-artifacts-macos
+        
+        # Copy Swift binaries
+        cp .build/release/swiftralino release-artifacts-macos/
+        cp .build/release/swiftralino-demo release-artifacts-macos/
+        cp .build/release/swiftralino-headless release-artifacts-macos/
+        
+        # Copy web assets
+        cp -r Sources/SwiftralinoWebView/dist release-artifacts-macos/web-assets
+        
+        # Copy documentation
+        cp README.md release-artifacts-macos/
+        cp Framework-Summary.md release-artifacts-macos/
+        
+        # Create tarball
+        tar -czf swiftralino-${{ github.ref_name }}-macos.tar.gz -C release-artifacts-macos .
+
+    - name: Upload macOS release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts-macos
+        path: |
+          swiftralino-${{ github.ref_name }}-macos.tar.gz
+        retention-days: 30
+
+  # Update GitHub release with all artifacts
+  update-latest-release:
+    name: Update Latest Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-and-push-docker, create-linux-release-artifacts]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Download Linux artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-artifacts-linux
+
+    - name: Download macOS artifacts (if available)
+      uses: actions/download-artifact@v4
+      if: needs.create-macos-release-artifacts.result == 'success'
+      with:
+        name: release-artifacts-macos
+      continue-on-error: true
+
+    - name: Update release with artifacts
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          swiftralino-${{ github.ref_name }}-linux.tar.gz
+          swiftralino-${{ github.ref_name }}-macos.tar.gz
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(github.ref_name, '-') }}
+        body: |
+          ## Release ${{ github.ref_name }}
+          
+          ### Downloads
+          - **Linux**: `swiftralino-${{ github.ref_name }}-linux.tar.gz` - Built on Ubuntu with Swift ${{ env.SWIFT_VERSION }}
+          - **macOS**: `swiftralino-${{ github.ref_name }}-macos.tar.gz` - Built on macOS 14 (available for stable releases)
+          - **Docker**: Available at `ghcr.io/${{ github.repository }}:${{ github.ref_name }}`
+          
+          ### What's included
+          - `swiftralino` - Main CLI tool
+          - `swiftralino-demo` - Demo application  
+          - `swiftralino-headless` - Headless server for Docker
+          - `web-assets/` - Built React frontend
+          
+          The Linux build is the primary supported platform. macOS builds are provided for official releases only.
+              env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
