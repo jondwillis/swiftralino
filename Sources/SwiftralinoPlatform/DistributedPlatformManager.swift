@@ -19,7 +19,7 @@ public class DistributedPlatformManager {
     // MARK: - Properties
     
     private var clusterSystem: ClusterSystem?
-    private let configuration: DistributedConfiguration
+    public let configuration: DistributedConfiguration
     
     // MARK: - Initialization
     

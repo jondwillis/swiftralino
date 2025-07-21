@@ -31,7 +31,7 @@ export const SwiftralinoProvider: React.FC<SwiftralinoProviderProps> = ({
   children,
   config: userConfig,
 }) => {
-  const [client, setClient] = useState<SwiftralClient | null>(null);
+  const [client, setClient] = useState<SwiftralinoClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<
     'connecting' | 'connected' | 'disconnected' | 'error'
@@ -45,35 +45,35 @@ export const SwiftralinoProvider: React.FC<SwiftralinoProviderProps> = ({
       ...userConfig,
     };
 
-    const swiftralClient = new WebSocketSwiftralClient(config);
+    const swiftralinoClient = new WebSocketSwiftralinoClient(config);
 
     // Set up event listeners
-    swiftralClient.addEventListener('connected', () => {
+    swiftralinoClient.addEventListener('connected', () => {
       setIsConnected(true);
       setConnectionStatus('connected');
     });
 
-    swiftralClient.addEventListener('disconnected', () => {
+    swiftralinoClient.addEventListener('disconnected', () => {
       setIsConnected(false);
       setConnectionStatus('disconnected');
     });
 
-    swiftralClient.addEventListener('error', () => {
+    swiftralinoClient.addEventListener('error', () => {
       setConnectionStatus('error');
     });
 
-    setClient(swiftralClient);
+    setClient(swiftralinoClient);
     setConnectionStatus('connecting');
 
     // Connect to backend
-    swiftralClient.connect().catch((error) => {
-      console.error('Failed to connect to Swiftral backend:', error);
+    swiftralinoClient.connect().catch((error: any) => {
+      console.error('Failed to connect to Swiftralino backend:', error);
       setConnectionStatus('error');
     });
 
     // Cleanup on unmount
     return () => {
-      swiftralClient.disconnect();
+      swiftralinoClient.disconnect();
     };
   }, [userConfig]);
 

@@ -42,6 +42,51 @@ export interface SwiftralinoAPI {
       uptime: number;
     }>
   >;
+
+  // Distributed APIs
+  initializeDistributed(config?: {
+    clusterName?: string;
+    host?: string;
+    port?: number;
+  }): Promise<SwiftralinoResponse<{ status: string; clusterName: string }>>;
+
+  getConnectedPlatforms(): Promise<
+    SwiftralinoResponse<{
+      platforms: Array<{
+        id: string;
+        deviceName: string;
+        platform: string;
+        version: string;
+        capabilities: string[];
+      }>;
+    }>
+  >;
+
+  executeOnAllPlatforms(script: string): Promise<
+    SwiftralinoResponse<{
+      results: Array<{
+        platformId: string;
+        success: boolean;
+        output: string;
+        timestamp: number;
+      }>;
+    }>
+  >;
+
+  shareDataDistributed(
+    key: string,
+    data: string
+  ): Promise<SwiftralinoResponse<{ status: string; key: string }>>;
+
+  retrieveDataDistributed(
+    key: string
+  ): Promise<SwiftralinoResponse<{ key: string; data: string | null }>>;
+
+  joinCluster(endpoint: string): Promise<SwiftralinoResponse<{ status: string; endpoint: string }>>;
+
+  getDistributedStatus(): Promise<
+    SwiftralinoResponse<{ initialized: boolean; [key: string]: any }>
+  >;
 }
 
 export interface SwiftralinoClient extends SwiftralinoAPI {

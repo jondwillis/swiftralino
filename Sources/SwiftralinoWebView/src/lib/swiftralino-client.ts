@@ -185,6 +185,105 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     });
   }
 
+  // Distributed API Methods
+  async initializeDistributed(config?: {
+    clusterName?: string;
+    host?: string;
+    port?: number;
+  }): Promise<SwiftralinoResponse<{ status: string; clusterName: string }>> {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: {
+        operation: 'initialize',
+        ...config,
+      },
+    });
+  }
+
+  async getConnectedPlatforms(): Promise<
+    SwiftralinoResponse<{
+      platforms: Array<{
+        id: string;
+        deviceName: string;
+        platform: string;
+        version: string;
+        capabilities: string[];
+      }>;
+    }>
+  > {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'platforms' },
+    });
+  }
+
+  async executeOnAllPlatforms(script: string): Promise<
+    SwiftralinoResponse<{
+      results: Array<{
+        platformId: string;
+        success: boolean;
+        output: string;
+        timestamp: number;
+      }>;
+    }>
+  > {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'execute', script },
+    });
+  }
+
+  async shareDataDistributed(
+    key: string,
+    data: string
+  ): Promise<SwiftralinoResponse<{ status: string; key: string }>> {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'share', key, data },
+    });
+  }
+
+  async retrieveDataDistributed(
+    key: string
+  ): Promise<SwiftralinoResponse<{ key: string; data: string | null }>> {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'retrieve', key },
+    });
+  }
+
+  async joinCluster(
+    endpoint: string
+  ): Promise<SwiftralinoResponse<{ status: string; endpoint: string }>> {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'join', endpoint },
+    });
+  }
+
+  async getDistributedStatus(): Promise<
+    SwiftralinoResponse<{ initialized: boolean; [key: string]: any }>
+  > {
+    return this.sendMessage({
+      id: crypto.randomUUID(),
+      type: 'api',
+      action: 'distributed',
+      data: { operation: 'status' },
+    });
+  }
+
   private handleMessage(data: string): void {
     try {
       const message: SwiftralinoResponse = JSON.parse(data);

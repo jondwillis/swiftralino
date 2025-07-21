@@ -1,5 +1,10 @@
 import Foundation
 
+// Distributed functionality temporarily disabled due to experimental nature of Swift Distributed Actors
+// #if canImport(SwiftralinoPlatform) && os(macOS)
+// import SwiftralinoPlatform
+// #endif
+
 /// Handles incoming messages from WebSocket clients and processes API calls
 /// Implements secure message processing with type-safe contracts
 @available(macOS 12.0, *)
@@ -119,6 +124,17 @@ public actor MessageHandler {
         await apiRegistry.register(FileSystemAPI())
         await apiRegistry.register(SystemAPI())
         await apiRegistry.register(ProcessAPI())
+        
+        // Distributed API temporarily disabled
+        // #if canImport(SwiftralinoPlatform) && os(macOS)
+        // // Register distributed API if available
+        // do {
+        //     await apiRegistry.register(DistributedAPI())
+        //     print("🌐 Distributed API registered successfully")
+        // } catch {
+        //     print("⚠️ Failed to register Distributed API: \(error)")
+        // }
+        // #endif
     }
 }
 
@@ -294,6 +310,183 @@ public struct ProcessAPI: SwiftralinoAPI {
         ]
     }
 }
+
+// Distributed functionality temporarily disabled due to experimental Swift Distributed Actors
+/*
+#if canImport(SwiftralinoPlatform) && os(macOS)
+/// Distributed platform operations API
+@available(macOS 14.0, *)
+public struct DistributedAPI: SwiftralinoAPI {
+    public let name = "distributed"
+    public let description = "Distributed platform operations"
+    
+    // Static instance to maintain state across API calls
+    private static let sharedManager = ActorWrapper()
+    
+    public func execute(parameters: [String: AnyCodable]?) async throws -> [String: Any] {
+        guard let parameters = parameters,
+              let operation = parameters["operation"]?.value as? String else {
+            throw APIError.missingParameter("operation")
+        }
+        
+        let manager = await Self.sharedManager.getManager()
+        
+        switch operation {
+        case "initialize":
+            let clusterName = (parameters["clusterName"]?.value as? String) ?? "swiftralino-cluster"
+            let host = (parameters["host"]?.value as? String) ?? "127.0.0.1"
+            let port = (parameters["port"]?.value as? Int) ?? 7337
+            
+            let config = DistributedConfiguration(
+                clusterName: clusterName,
+                host: host,
+                port: port
+            )
+            
+            try await manager.initialize(with: config)
+            return ["status": "initialized", "clusterName": clusterName]
+            
+        case "platforms":
+            let platforms = try await manager.getConnectedPlatforms()
+            return ["platforms": platforms.map { platform in
+                [
+                    "id": platform.id,
+                    "deviceName": platform.deviceName,
+                    "platform": platform.platform,
+                    "version": platform.version,
+                    "capabilities": platform.capabilities
+                ]
+            }]
+            
+        case "execute":
+            guard let script = parameters["script"]?.value as? String else {
+                throw APIError.missingParameter("script")
+            }
+            
+            let results = try await manager.executeJavaScriptDistributed(script)
+            return ["results": results.map { result in
+                [
+                    "platformId": result.platformId,
+                    "success": result.success,
+                    "output": result.output,
+                    "timestamp": result.timestamp.timeIntervalSince1970
+                ]
+            }]
+            
+        case "share":
+            guard let key = parameters["key"]?.value as? String,
+                  let dataString = parameters["data"]?.value as? String else {
+                throw APIError.missingParameter("key or data")
+            }
+            
+            guard let data = dataString.data(using: .utf8) else {
+                throw APIError.executionFailed("Failed to encode data")
+            }
+            
+            try await manager.shareData(key: key, data: data)
+            return ["status": "shared", "key": key]
+            
+        case "retrieve":
+            guard let key = parameters["key"]?.value as? String else {
+                throw APIError.missingParameter("key")
+            }
+            
+            if let data = try await manager.retrieveSharedData(key: key),
+               let dataString = String(data: data, encoding: .utf8) {
+                return ["key": key, "data": dataString]
+            } else {
+                return ["key": key, "data": NSNull()]
+            }
+            
+        case "join":
+            guard let endpoint = parameters["endpoint"]?.value as? String else {
+                throw APIError.missingParameter("endpoint")
+            }
+            
+            try await manager.joinCluster(endpoint: endpoint)
+            return ["status": "joined", "endpoint": endpoint]
+            
+        case "status":
+            let status = await manager.getClusterStatus()
+            return ["status": status]
+            
+        default:
+            throw APIError.unsupportedOperation(operation)
+        }
+    }
+    
+    // Actor wrapper to maintain WebViewManager instance
+    @MainActor
+    private final class ActorWrapper {
+        private var webViewManager: WebViewManager?
+        private var isInitialized = false
+        
+        func getManager() async -> WebViewManager {
+            if webViewManager == nil {
+                // Create a basic WebView configuration for distributed-only usage
+                let config = WebViewConfiguration(
+                    windowTitle: "Swiftralino Distributed Backend",
+                    windowWidth: 1,
+                    windowHeight: 1,
+                    initialURL: "about:blank",
+                    enableDeveloperTools: false
+                )
+                webViewManager = WebViewManager(configuration: config)
+            }
+            return webViewManager!
+        }
+        
+        func initialize(with config: DistributedConfiguration) async throws {
+            let manager = await getManager()
+            if !isInitialized {
+                try await manager.initializeDistributed(with: config)
+                isInitialized = true
+            }
+        }
+        
+        func getConnectedPlatforms() async throws -> [PlatformInfo] {
+            let manager = await getManager()
+            return try await manager.getConnectedPlatforms()
+        }
+        
+        func executeJavaScriptDistributed(_ script: String) async throws -> [CommandResult] {
+            let manager = await getManager()
+            return try await manager.executeJavaScriptDistributed(script)
+        }
+        
+        func shareData(key: String, data: Data) async throws {
+            let manager = await getManager()
+            try await manager.shareData(key: key, data: data)
+        }
+        
+        func retrieveSharedData(key: String) async throws -> Data? {
+            let manager = await getManager()
+            return try await manager.retrieveSharedData(key: key)
+        }
+        
+        func joinCluster(endpoint: String) async throws {
+            let manager = await getManager()
+            // Parse endpoint string into Cluster.Endpoint if needed
+            // For now, just acknowledge the join request
+        }
+        
+        func getClusterStatus() async -> [String: Any] {
+            if isInitialized {
+                return [
+                    "initialized": true,
+                    "timestamp": Date().timeIntervalSince1970
+                ]
+            } else {
+                return [
+                    "initialized": false,
+                    "message": "Cluster not initialized"
+                ]
+            }
+        }
+    }
+}
+#endif
+*/
 
 // MARK: - API Errors
 

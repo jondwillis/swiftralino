@@ -4,6 +4,7 @@ import { ConnectionStatus } from './ConnectionStatus';
 import { SystemInfo } from './SystemInfo';
 import { FileExplorer } from './FileExplorer';
 import { ProcessRunner } from './ProcessRunner';
+import { DistributedPlatform } from './DistributedPlatform';
 
 export const MainLayout: React.FC = () => {
   const { connectionStatus } = useSwiftralino();
@@ -23,11 +24,14 @@ export const MainLayout: React.FC = () => {
         </header>
 
         {/* Main Content Grid */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 max-w-8xl mx-auto'>
           <SystemInfo />
           <FileExplorer />
           <ProcessRunner />
-          <div className='lg:col-span-1'>
+          <div className='lg:col-span-2 xl:col-span-3'>
+            <DistributedPlatform />
+          </div>
+          <div className='lg:col-span-1 xl:col-span-1'>
             <div className='bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20'>
               <h3 className='text-2xl font-semibold text-white mb-4 flex items-center'>
                 <span className='text-3xl mr-3'>🌉</span>
@@ -48,6 +52,10 @@ export const MainLayout: React.FC = () => {
                 <div className='flex justify-between'>
                   <span className='text-gray-400'>Backend:</span>
                   <span className='text-white'>Swift + Vapor</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-400'>Distributed:</span>
+                  <span className='text-white'>Swift Cluster</span>
                 </div>
               </div>
             </div>
