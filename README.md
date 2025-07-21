@@ -1,245 +1,235 @@
-# ⚡ Swiftralino
+# Swiftralino
 
-A lightweight cross-platform desktop application framework that implements
-Neutralino's paradigm using Swift backend with web frontend, delivering native
-performance without Electron's bloat.
+**Swiftralino** is a secure-by-default, Swift-native framework for building
+cross-platform desktop applications. Inspired by Tauri and Neutralino, it uses
+Swift for the backend and web technologies for the frontend, with **HTTPS/TLS
+enabled by default** for security.
 
-## 🎯 Project Goals
+## ✨ Features
 
-Swiftralino implements the vision outlined in our research to create a
-Swift-based alternative to Electron and similar frameworks by:
-
-- **Leveraging Swift's Performance**: Utilizing Swift's compiled nature, ARC
-  memory management, and modern concurrency features
-- **Cross-Platform Support**: Targeting macOS, Linux, and Windows with
-  platform-specific WebView implementations
-- **Lightweight Communication**: Implementing efficient WebSocket-based IPC
-  between Swift backend and web frontend
-- **Security-First Architecture**: Following Tauri's security model with
-  actor-based state management
-- **Native Integration**: Providing seamless access to system APIs through
-  type-safe Swift interfaces
-
-## 🏗️ Architecture
-
-Swiftralino follows a hybrid architecture combining Tauri's security model with
-Neutralino's lightweight communication patterns:
-
-```
-┌─────────────────┐     WebSocket      ┌─────────────────┐
-│   Web Frontend  │ ◄──────────────► │  Swift Backend  │
-│   (HTML/CSS/JS) │     Bridge        │   (Actor-based) │
-└─────────────────┘                   └─────────────────┘
-         │                                      │
-         ▼                                      ▼
-┌─────────────────┐                   ┌─────────────────┐
-│   Platform      │                   │    System       │
-│   WebView       │                   │    APIs         │
-│ (WKWebView/etc) │                   │ (File/Process)  │
-└─────────────────┘                   └─────────────────┘
-```
-
-### Core Components
-
-1. **SwiftralinoApp**: Main application actor coordinating all components
-2. **WebServer**: Vapor-based WebSocket server handling frontend-backend
-   communication
-3. **WebViewManager**: Platform-specific WebView abstraction layer
-4. **MessageHandler**: Processes API calls with type-safe contracts
-5. **APIRegistry**: Extensible system for registering native Swift APIs
+- **🔒 Secure by Default**: TLS/HTTPS enabled everywhere, including development
+- **⚡ Swift-Native**: Pure Swift backend with async/await support
+- **🌐 Web Frontend**: React/TypeScript frontend with full access to Swift APIs
+- **📡 WebSocket Bridge**: Real-time communication between Swift and JavaScript
+- **🐳 Docker Ready**: Headless deployment for cloud/server environments
+- **🧪 Modern Testing**: Swift Testing framework with comprehensive test
+  coverage
+- **🔧 Developer Friendly**: Hot reload, development tools, and easy certificate
+  setup
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 1. Prerequisites
 
-- Swift 5.9 or later
-- macOS 12+ (for macOS WebView support)
-- Linux (experimental WebView support)
+- **macOS 12.0+** with Xcode 15.0+
+- **Swift 5.9+**
+- **Node.js 18+** (for frontend development)
 
-### Building and Running
-
-0. Swift Version a. Download swiftly
+### 2. First-Time Setup
 
 ```bash
-curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg && \
-installer -pkg swiftly.pkg -target CurrentUserHomeDirectory && \
-~/.swiftly/bin/swiftly init --quiet-shell-followup && \
-. "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh" && \
-hash -r
+# Clone the repository
+git clone <repository-url>
+cd swiftralino
+
+# Generate development certificates (required for HTTPS)
+make generate-cert
+
+# Trust the certificate (eliminates browser warnings)
+make trust-cert-macos
+
+# Build frontend assets
+make frontend-install frontend-build
+
+# Run the demo application
+make demo
 ```
 
-Otherwise, download Swift 6.1.2+
+### 3. Access Your Application
 
-1. **Clone and navigate to the project:**
-   ```bash
-   cd swiftralino
-   ```
+- **🌐 Web Interface**: https://localhost:8080
+- **🔗 WebSocket API**: wss://localhost:8080/bridge
+- **✅ Secure Connection**: No browser warnings with trusted certificates
 
-2. **Build the project:**
-   ```bash
-   swift build
-   ```
+## 🔒 Security & Certificates
 
-3. **Run the demo application:**
-   ```bash
-   swift run
-   ```
+### Why TLS by Default?
 
-4. **Test the application:**
-   - The app will launch with both a WebSocket server and WebView window
-   - Open http://127.0.0.1:8080 in your browser (if WebView doesn't appear)
-   - Try the interactive demo features:
-     - System information queries
-     - File system operations
-     - Process execution
-     - WebSocket bridge communication
+Swiftralino enables **HTTPS/TLS by default** in all environments because:
 
-## 📱 Platform Support
+- **🛡️ Security First**: No insecure development habits
+- **🔄 Dev-Prod Parity**: Same security model everywhere
+- **🌍 Modern Web**: HTTPS is required for many web APIs
+- **🔐 Best Practices**: Industry standard for networked applications
 
-| Platform | WebView   | Status     | Implementation             |
-| -------- | --------- | ---------- | -------------------------- |
-| macOS    | WKWebView | ✅ Working | Native Cocoa integration   |
-| Linux    | WebKitGTK | 🚧 Planned | SwiftGtk bindings          |
-| Windows  | WebView2  | 🚧 Planned | C++ interop or alternative |
+### Development Certificate Setup
+
+**Option 1: Self-Signed Certificate (Recommended for Development)**
+
+```bash
+# Generate and trust certificate
+make generate-cert
+make trust-cert-macos  # or trust-cert-linux
+```
+
+**Option 2: Disable TLS (Not Recommended)**
+
+```swift
+let serverConfig = ServerConfiguration(
+    host: "127.0.0.1",
+    port: 8080,
+    enableTLS: false  // Shows security warning
+)
+```
 
 ## 🛠️ Development
 
-### Project Structure
-
-```
-swiftralino/
-├── Sources/
-│   ├── Swiftralino/           # Main executable
-│   │   └── main.swift
-│   └── SwiftralinoCore/       # Core framework
-│       ├── SwiftralinoApp.swift     # Main application actor
-│       ├── WebServer.swift          # WebSocket server
-│       ├── WebViewManager.swift     # Platform WebView abstraction
-│       └── MessageHandler.swift     # API message processing
-├── Public/                    # Static web assets
-│   └── index.html            # Demo frontend
-├── Tests/                    # Test suite
-├── Package.swift             # Swift Package Manager configuration
-└── README.md
-```
-
-### Adding Custom APIs
-
-Extend the framework by implementing the `SwiftralinoAPI` protocol:
-
-```swift
-public struct CustomAPI: SwiftralinoAPI {
-    public let name = "custom"
-    public let description = "Custom API functionality"
-    
-    public func execute(parameters: [String: AnyCodable]?) async throws -> [String: Any] {
-        // Your custom API implementation
-        return ["result": "success"]
-    }
-}
-
-// Register in MessageHandler
-await apiRegistry.register(CustomAPI())
-```
-
-### Frontend Integration
-
-The JavaScript bridge provides easy access to Swift APIs:
-
-```javascript
-// System information
-const info = await window.Swiftralino.system.info();
-
-// File operations
-const files = await window.Swiftralino.filesystem.readDirectory("/path");
-
-// Process execution
-const result = await window.Swiftralino.process.execute("ls", ["-la"]);
-
-// Custom API calls
-const response = await window.Swiftralino.callAPI("custom", { param: "value" });
-```
-
-## 🔒 Security Features
-
-- **Actor-Based Isolation**: Swift actors ensure thread-safe state management
-- **Message Validation**: Type-safe API contracts prevent injection attacks
-- **Sandboxed Execution**: Platform-specific sandboxing for system operations
-- **Minimal Attack Surface**: Only explicitly registered APIs are exposed
-
-## 🧪 Testing
-
-Run the test suite:
+### Running Tests
 
 ```bash
-swift test
+# Run all tests with Swift Testing
+swift test --parallel
+
+# Run specific test suites
+swift test --filter "SwiftralinoTests"
+swift test --filter "DistributedPlatformTests"
+
+# Run performance tests
+swift test --filter "performance"
+
+# Skip slow tests
+swift test --skip-tags slow
 ```
 
-For manual testing, the demo application provides interactive examples of all
-major features.
+### Frontend Development
 
-## 🗺️ Roadmap
+```bash
+# Install dependencies and start dev server
+cd Sources/SwiftralinoWebView
+npm install
+npm run dev
 
-### Phase 1: Core Architecture ✅
+# Build for production
+npm run build
+```
 
-- [x] WebSocket server implementation
-- [x] macOS WebView integration
-- [x] Basic API system (filesystem, system, process)
-- [x] Actor-based state management
+### Docker Deployment
 
-### Phase 2: Platform Expansion 🚧
+```bash
+# Quick deployment with self-signed certificates
+make generate-cert
+make deploy-dev
 
-- [ ] Linux WebView support (WebKitGTK)
-- [ ] Windows WebView support (WebView2)
-- [ ] Cross-platform build system
-- [ ] Enhanced security features
+# Production deployment with Let's Encrypt
+DOMAIN=yourdomain.com CERTBOT_EMAIL=you@domain.com make deploy-proxy
+```
 
-### Phase 3: Optimization & Polish 🔮
+## 🏗️ Architecture
 
-- [ ] Performance optimizations
-- [ ] Advanced packaging
-- [ ] Developer tooling
-- [ ] Documentation and examples
+```
+┌─────────────────┐    HTTPS/WSS     ┌─────────────────┐
+│   Web Frontend  │◄────────────────►│  Swift Backend  │
+│  (React/TypeScript) │              │   (Vapor/NIO)   │
+└─────────────────┘                  └─────────────────┘
+                                            │
+                                     ┌──────▼──────┐
+                                     │   Swift APIs │
+                                     │ • FileSystem │
+                                     │ • System Info│
+                                     │ • Distributed│
+                                     └─────────────┘
+```
+
+## 🔧 Configuration
+
+### Server Configuration
+
+```swift
+let serverConfig = ServerConfiguration(
+    host: "127.0.0.1",           // Bind address
+    port: 8080,                  // Server port
+    enableTLS: true              // TLS enabled by default
+)
+```
+
+### WebView Configuration
+
+```swift
+let webViewConfig = WebViewConfiguration(
+    initialURL: "https://127.0.0.1:8080",  // HTTPS by default
+    windowTitle: "My App",
+    windowWidth: 1200,
+    windowHeight: 800,
+    enableDeveloperTools: true
+)
+```
+
+## 📚 API Examples
+
+### Swift to JavaScript
+
+```swift
+// In your Swift API
+func execute(parameters: [String: AnyCodable]?) async throws -> [String: Any] {
+    return [
+        "message": "Hello from Swift!",
+        "timestamp": Date().timeIntervalSince1970,
+        "systemInfo": await getSystemInfo()
+    ]
+}
+```
+
+### JavaScript to Swift
+
+```typescript
+// In your React/TypeScript frontend
+import { swiftralino } from "./lib/swiftralino-client";
+
+const result = await swiftralino.api.system.info();
+console.log("Swift response:", result);
+
+const files = await swiftralino.api.filesystem.readDirectory("/Users");
+console.log("Directory contents:", files);
+```
+
+## 🚢 Deployment Options
+
+### Development
+
+- **Local**: `make demo` (with self-signed certificates)
+- **Docker**: `make deploy-dev` (containerized development)
+
+### Production
+
+- **Self-Hosted**: `make deploy` (Docker with custom certificates)
+- **Cloud**: `make deploy-proxy` (Docker + Nginx + Let's Encrypt)
+- **Headless**: Docker-only deployment without WebView GUI
 
 ## 🤝 Contributing
 
-We welcome contributions! Key areas of interest:
-
-1. **Linux WebView Implementation**: WebKitGTK integration through SwiftGtk
-2. **Windows Support**: WebView2 bindings or alternative approaches
-3. **API Extensions**: New system APIs and functionality
-4. **Performance Optimizations**: Memory usage and startup time improvements
-5. **Security Enhancements**: Additional sandboxing and validation
-
-## 📚 Research Background
-
-This project implements the vision described in our research document, which
-identified Swift as an ideal candidate for lightweight desktop applications due
-to:
-
-- Memory safety without garbage collection overhead
-- Modern concurrency features with actors and async/await
-- Growing cross-platform ecosystem
-
-For detailed analysis, see [docs/research.md](docs/research.md).
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Add** tests for your changes
+4. **Run** tests: `swift test --parallel`
+5. **Commit** changes (`git commit -m 'Add amazing feature'`)
+6. **Push** to branch (`git push origin feature/amazing-feature`)
+7. **Create** a Pull Request
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
+for details.
 
 ## 🙏 Acknowledgments
 
-Inspired by:
+- **[Tauri](https://tauri.app/)** - Inspiration for the architecture
+- **[Neutralino](https://neutralino.js.org/)** - Lightweight app framework
+  concepts
+- **[Vapor](https://vapor.codes/)** - Swift web framework
+- **[Swift Testing](https://github.com/apple/swift-testing)** - Modern testing
+  framework
 
-- [Neutralino.js](https://neutralino.js.org/) - Lightweight cross-platform app
-  development
-- [Tauri](https://tauri.app/) - Rust-based application framework
-- [Electron](https://electronjs.org/) - The framework we aim to make more
-  efficient
+---
 
-Built with:
-
-- [Vapor](https://vapor.codes/) - Swift server framework
-- [Swift Package Manager](https://swift.org/package-manager/) - Dependency
-  management
-- Modern web technologies for frontend development
+**Swiftralino**: Build secure, Swift-native desktop applications with web
+frontends. 🚀🔒

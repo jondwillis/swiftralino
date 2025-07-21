@@ -14,7 +14,7 @@ struct SwiftralinoTests {
         
         #expect(config.server.host == "127.0.0.1")
         #expect(config.server.port == 8080)
-        #expect(config.server.enableTLS == false)
+        #expect(config.server.enableTLS == true)
         
         #expect(config.webView.windowTitle == "Swiftralino App")
         #expect(config.webView.windowWidth == 1024)

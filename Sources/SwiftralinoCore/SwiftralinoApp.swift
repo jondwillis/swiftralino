@@ -107,7 +107,8 @@ public actor SwiftralinoApp {
             throw SwiftralinoError.webViewNotAvailable
         }
         
-        let bridgeURL = "ws://\(configuration.server.host):\(configuration.server.port)/bridge"
+        let scheme = configuration.server.enableTLS ? "wss" : "ws"
+        let bridgeURL = "\(scheme)://\(configuration.server.host):\(configuration.server.port)/bridge"
         await webViewManager.connectToBridge(url: bridgeURL)
     }
 }
@@ -120,10 +121,18 @@ public struct ServerConfiguration {
     public let port: Int
     public let enableTLS: Bool
     
-    public init(host: String = "127.0.0.1", port: Int = 8080, enableTLS: Bool = false) {
+    public init(host: String = "127.0.0.1", port: Int = 8080, enableTLS: Bool = true) {
         self.host = host
         self.port = port
         self.enableTLS = enableTLS
+        
+        // Security warning when TLS is disabled
+        if !enableTLS {
+            print("⚠️  WARNING: TLS is DISABLED")
+            print("   This is not recommended for production use!")
+            print("   Consider enabling TLS for secure communication.")
+            print("   Set enableTLS: true or configure certificates.")
+        }
     }
     
     public static let `default` = ServerConfiguration()
@@ -138,7 +147,7 @@ public struct WebViewConfiguration {
     public let enableDeveloperTools: Bool
     
     public init(
-        initialURL: String = "http://127.0.0.1:8080",
+        initialURL: String = "https://127.0.0.1:8080",
         windowTitle: String = "Swiftralino App",
         windowWidth: Int = 1024,
         windowHeight: Int = 768,
