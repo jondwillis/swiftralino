@@ -127,8 +127,64 @@ generate-cert: ## Generate self-signed certificate for development
 	@mkdir -p ssl
 	openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem \
 		-days 365 -nodes \
-		-subj "/C=US/ST=Dev/L=Dev/O=Swiftralino/CN=localhost"
+		-subj "/C=US/ST=Dev/L=Dev/O=Swiftralino/CN=localhost" \
+		-addext "subjectAltName=DNS:localhost,DNS:*.localhost,IP:127.0.0.1,IP:::1"
 	@echo "✅ Self-signed certificate generated in ssl/"
+	@echo "📋 To trust this certificate:"
+	@echo "   macOS: make trust-cert-macos"
+	@echo "   Linux: make trust-cert-linux"
+	@echo "   Windows: make trust-cert-windows"
+
+trust-cert-macos: ## Add certificate to macOS trust store
+	@if [ ! -f ssl/cert.pem ]; then \
+		echo "❌ Certificate not found. Run 'make generate-cert' first"; \
+		exit 1; \
+	fi
+	@echo "🔑 Adding certificate to macOS Keychain..."
+	security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain ssl/cert.pem
+	@echo "✅ Certificate added to macOS Keychain"
+	@echo "🌐 You can now access https://localhost:8443 without warnings"
+
+trust-cert-linux: ## Add certificate to Linux trust store
+	@if [ ! -f ssl/cert.pem ]; then \
+		echo "❌ Certificate not found. Run 'make generate-cert' first"; \
+		exit 1; \
+	fi
+	@echo "🔑 Adding certificate to Linux trust store..."
+	@echo "This requires sudo access:"
+	sudo cp ssl/cert.pem /usr/local/share/ca-certificates/swiftralino.crt
+	sudo update-ca-certificates
+	@echo "✅ Certificate added to Linux trust store"
+	@echo "🌐 You may need to restart your browser"
+
+trust-cert-windows: ## Instructions for Windows trust store
+	@if [ ! -f ssl/cert.pem ]; then \
+		echo "❌ Certificate not found. Run 'make generate-cert' first"; \
+		exit 1; \
+	fi
+	@echo "🔑 Windows Certificate Trust Instructions:"
+	@echo "========================================="
+	@echo "1. Copy ssl/cert.pem to your Windows machine"
+	@echo "2. Double-click the .pem file"
+	@echo "3. Click 'Install Certificate...'"
+	@echo "4. Select 'Local Machine' and click 'Next'"
+	@echo "5. Select 'Place all certificates in the following store'"
+	@echo "6. Click 'Browse' and select 'Trusted Root Certification Authorities'"
+	@echo "7. Click 'Next' then 'Finish'"
+	@echo "8. Click 'Yes' on the security warning"
+	@echo "✅ Certificate will be trusted system-wide"
+
+untrust-cert-macos: ## Remove certificate from macOS trust store
+	@echo "🗑️  Removing Swiftralino certificate from macOS Keychain..."
+	@security delete-certificate -c "Swiftralino" ~/Library/Keychains/login.keychain 2>/dev/null || true
+	@echo "✅ Certificate removed from macOS Keychain"
+
+untrust-cert-linux: ## Remove certificate from Linux trust store
+	@echo "🗑️  Removing certificate from Linux trust store..."
+	@echo "This requires sudo access:"
+	sudo rm -f /usr/local/share/ca-certificates/swiftralino.crt
+	sudo update-ca-certificates --fresh
+	@echo "✅ Certificate removed from Linux trust store"
 
 letsencrypt: ## Obtain Let's Encrypt certificate
 	@echo "🌐 Obtaining Let's Encrypt certificate..."

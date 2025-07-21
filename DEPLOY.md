@@ -188,6 +188,10 @@ Development features:
    # Generate certificate
    make generate-cert
 
+   # Add to system trust store (eliminates browser warnings)
+   make trust-cert-macos    # macOS
+   make trust-cert-linux    # Linux
+
    # Deploy
    make deploy-dev
    ```
@@ -208,6 +212,79 @@ Development features:
    echo "SWIFTRALINO_DISABLE_TLS=true" >> .env
    make deploy
    ```
+
+### Certificate Trust Store Setup
+
+To eliminate browser security warnings for self-signed certificates, add your
+certificate to your system's trust store:
+
+#### 🍎 macOS
+
+```bash
+# Generate and trust certificate automatically
+make generate-cert
+make trust-cert-macos
+
+# Or manually via Keychain Access:
+# 1. Open Keychain Access
+# 2. File → Import Items → Select ssl/cert.pem
+# 3. Double-click imported certificate
+# 4. Expand "Trust" section
+# 5. Set "Secure Sockets Layer (SSL)" to "Always Trust"
+```
+
+#### 🐧 Linux
+
+```bash
+# Generate and trust certificate automatically
+make generate-cert
+make trust-cert-linux
+
+# Or manually:
+sudo cp ssl/cert.pem /usr/local/share/ca-certificates/swiftralino.crt
+sudo update-ca-certificates
+```
+
+#### 🪟 Windows
+
+```bash
+# Generate certificate first
+make generate-cert
+
+# Follow manual instructions
+make trust-cert-windows
+
+# Or use PowerShell as Administrator:
+# Import-Certificate -FilePath "ssl\cert.pem" -CertStoreLocation "Cert:\LocalMachine\Root"
+```
+
+#### 🌐 Browser-Specific (Alternative)
+
+Some browsers (like Chrome) maintain separate certificate stores:
+
+**Chrome/Edge:**
+
+1. Go to `chrome://settings/certificates`
+2. Click "Authorities" tab
+3. Click "Import" and select `ssl/cert.pem`
+4. Check "Trust this certificate for identifying websites"
+
+**Firefox:**
+
+1. Go to `about:preferences#privacy`
+2. Scroll to "Certificates" → "View Certificates"
+3. Click "Authorities" tab → "Import"
+4. Select `ssl/cert.pem`
+5. Check "Trust this CA to identify websites"
+
+#### Certificate Cleanup
+
+When done developing, remove the certificate:
+
+```bash
+make untrust-cert-macos    # macOS
+make untrust-cert-linux    # Linux
+```
 
 ## 🔍 Monitoring and Debugging
 
