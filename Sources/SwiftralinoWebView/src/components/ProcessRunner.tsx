@@ -9,7 +9,9 @@ export const ProcessRunner: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleExecuteCommand = async () => {
-    if (!client || !isConnected || !command) return;
+    if (!client || !isConnected || !command) {
+      return;
+    }
 
     setLoading(true);
     try {

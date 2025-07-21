@@ -8,7 +8,9 @@ export const FileExplorer: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleReadDirectory = async () => {
-    if (!client || !isConnected || !path) return;
+    if (!client || !isConnected || !path) {
+      return;
+    }
 
     setLoading(true);
     try {

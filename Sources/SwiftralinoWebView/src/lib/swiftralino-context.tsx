@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { WebSocketSwiftralinoClient } from './swiftralino-client';
 import type { SwiftralinoClient, SwiftralinoConfig } from '@/types/swiftralino';
 

@@ -202,14 +202,14 @@ public struct DistributedConfiguration {
     public let clusterName: String
     public let host: String
     public let port: Int
-    public let discovery: ServiceDiscovery?
+    public let discovery: (any ServiceDiscovery)?
     public let tls: TLSConfiguration?
     
     public init(
         clusterName: String,
         host: String = "127.0.0.1",
         port: Int = 7337,
-        discovery: ServiceDiscovery? = nil,
+        discovery: (any ServiceDiscovery)? = nil,
         tls: TLSConfiguration? = nil
     ) {
         self.clusterName = clusterName

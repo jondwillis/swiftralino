@@ -7,7 +7,9 @@ export const SystemInfo: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleGetSystemInfo = async () => {
-    if (!client || !isConnected) return;
+    if (!client || !isConnected) {
+      return;
+    }
 
     setLoading(true);
     try {
