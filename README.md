@@ -160,15 +160,6 @@ const result = await window.Swiftralino.process.execute("ls", ["-la"]);
 const response = await window.Swiftralino.callAPI("custom", { param: "value" });
 ```
 
-## 🎯 Performance Characteristics
-
-Based on our research and initial implementation:
-
-- **Startup Time**: ~50ms (vs Electron's ~800ms)
-- **Memory Usage**: 15-30MB baseline (vs Electron's 200-400MB)
-- **Binary Size**: Targeting ~2.5MB (similar to Tauri)
-- **Communication Overhead**: Minimal WebSocket-based IPC
-
 ## 🔒 Security Features
 
 - **Actor-Based Isolation**: Swift actors ensure thread-safe state management
@@ -226,7 +217,6 @@ This project implements the vision described in our research document, which
 identified Swift as an ideal candidate for lightweight desktop applications due
 to:
 
-- Superior performance characteristics compared to JavaScript runtimes
 - Memory safety without garbage collection overhead
 - Modern concurrency features with actors and async/await
 - Growing cross-platform ecosystem
