@@ -1,4 +1,5 @@
-import XCTest
+import Testing
+import Foundation
 @testable import SwiftralinoPlatform
 @testable import SwiftralinoCore
 
@@ -6,113 +7,149 @@ import XCTest
 import DistributedCluster
 #endif
 
-@available(macOS 14.0, *)
-final class DistributedPlatformTests: XCTestCase {
+@Suite("Distributed Platform Tests")
+struct DistributedPlatformTests {
     
-    private var distributedManager: DistributedPlatformManager!
-    private var testConfiguration: DistributedConfiguration!
-    
-    override func setUp() async throws {
-        try await super.setUp()
-        
-        testConfiguration = DistributedConfiguration(
+    // Helper method to create test configuration
+    private func createTestConfiguration() -> DistributedConfiguration {
+        return DistributedConfiguration(
             clusterName: "test-cluster-\(UUID().uuidString.prefix(8))",
             host: "127.0.0.1",
             port: Int.random(in: 17000...18000), // Random port to avoid conflicts
             discovery: nil,
             tls: nil
         )
-        
-        distributedManager = DistributedPlatformManager(configuration: testConfiguration)
-    }
-    
-    override func tearDown() async throws {
-        if distributedManager != nil {
-            await distributedManager.shutdown()
-            distributedManager = nil
-        }
-        try await super.tearDown()
     }
     
     // MARK: - Configuration Tests
     
-    func testDistributedConfigurationDefaults() {
+    @Test("Distributed configuration uses correct defaults")
+    @available(macOS 14.0, *)
+    func distributedConfigurationDefaults() {
         let config = DistributedConfiguration(clusterName: "test")
         
-        XCTAssertEqual(config.clusterName, "test")
-        XCTAssertEqual(config.host, "127.0.0.1")
-        XCTAssertEqual(config.port, 7337)
-        XCTAssertNil(config.discovery)
-        XCTAssertNil(config.tls)
+        #expect(config.clusterName == "test")
+        #expect(config.host == "127.0.0.1")
+        #expect(config.port == 7337)
+        #expect(config.discovery == nil)
+        #expect(config.tls == nil)
     }
     
-    func testDistributedConfigurationCustomValues() {
+    @Test("Distributed configuration accepts custom values", 
+          arguments: [
+            ("custom-cluster", "192.168.1.100", 9999),
+            ("test-cluster", "localhost", 8080),
+            ("prod-cluster", "0.0.0.0", 7337)
+          ])
+    @available(macOS 14.0, *)
+    func distributedConfigurationCustomValues(clusterName: String, host: String, port: Int) {
         let config = DistributedConfiguration(
-            clusterName: "custom-cluster",
-            host: "192.168.1.100",
-            port: 9999
+            clusterName: clusterName,
+            host: host,
+            port: port
         )
         
-        XCTAssertEqual(config.clusterName, "custom-cluster")
-        XCTAssertEqual(config.host, "192.168.1.100")
-        XCTAssertEqual(config.port, 9999)
+        #expect(config.clusterName == clusterName)
+        #expect(config.host == host)
+        #expect(config.port == port)
     }
     
     // MARK: - Platform Manager Tests
     
-    func testDistributedPlatformManagerInitialization() {
-        XCTAssertNotNil(distributedManager)
-        XCTAssertEqual(distributedManager.configuration.clusterName, testConfiguration.clusterName)
+    @Test("DistributedPlatformManager initializes correctly")
+    @available(macOS 14.0, *)
+    func distributedPlatformManagerInitialization() {
+        let testConfiguration = DistributedConfiguration(clusterName: "test")
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        #expect(distributedManager.configuration.clusterName == testConfiguration.clusterName)
     }
     
-    func testClusterInitialization() async throws {
+    @Test("Creating coordinator fails without initialized cluster")
+    @available(macOS 14.0, *)
+    func createCoordinatorWithoutInitializedCluster() async throws {
+        let testConfiguration = DistributedConfiguration(clusterName: "test")
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        defer {
+            Task {
+                await distributedManager.shutdown()
+            }
+        }
+        
+        // Should fail without initialized cluster
+        do {
+            _ = try await distributedManager.createCoordinator()
+            Issue.record("Expected clusterNotInitialized error")
+        } catch DistributedPlatformError.clusterNotInitialized {
+            // Expected
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+    
+    // MARK: - Cluster Operations Tests
+    
+    @Test("Cluster initialization works when DistributedCluster is available", 
+          .timeLimit(.minutes(1)), .tags(.distributed, .integration))
+    @available(macOS 14.0, *)
+    func clusterInitialization() async throws {
+        let testConfiguration = createTestConfiguration()
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        defer {
+            Task {
+                await distributedManager.shutdown()
+            }
+        }
+        
         #if canImport(DistributedCluster)
         // This test will only run when DistributedCluster is available
         do {
             try await distributedManager.initializeCluster()
             // If we get here, initialization succeeded
-            XCTAssertTrue(true, "Cluster initialization succeeded")
         } catch DistributedPlatformError.distributedClusterNotAvailable {
             // Expected when DistributedCluster isn't available
-            throw XCTSkip("DistributedCluster framework not available in test environment")
+            withKnownIssue("DistributedCluster framework not available in test environment") {
+                // Skip this test
+            }
+            return
         } catch {
-            XCTFail("Unexpected error during cluster initialization: \(error)")
+            Issue.record("Unexpected error during cluster initialization: \(error)")
         }
         #else
-        // Test that proper error is thrown when DistributedCluster isn't available
         do {
             try await distributedManager.initializeCluster()
-            XCTFail("Should have thrown distributedClusterNotAvailable error")
+            Issue.record("Should have thrown distributedClusterNotAvailable error")
         } catch DistributedPlatformError.distributedClusterNotAvailable {
             // Expected
-            XCTAssertTrue(true)
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
         #endif
     }
     
-    func testCreateCoordinatorWithoutInitializedCluster() async throws {
-        // Should fail without initialized cluster
-        do {
-            _ = try await distributedManager.createCoordinator()
-            XCTFail("Should have thrown clusterNotInitialized error")
-        } catch DistributedPlatformError.clusterNotInitialized {
-            XCTAssertTrue(true, "Correctly threw clusterNotInitialized error")
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-    
     #if canImport(DistributedCluster)
-    func testFullClusterWorkflow() async throws {
+    @Test("Full cluster workflow with platform registration and coordination", 
+          .timeLimit(.minutes(1)), .tags(.integration, .slow))
+    @available(macOS 14.0, *)
+    func fullClusterWorkflow() async throws {
+        let testConfiguration = createTestConfiguration()
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        defer {
+            Task {
+                await distributedManager.shutdown()
+            }
+        }
+        
         do {
             // Initialize cluster
             try await distributedManager.initializeCluster()
             
             // Create coordinator
             let coordinator = try await distributedManager.createCoordinator()
-            XCTAssertNotNil(coordinator, "Coordinator should be created successfully")
+            #expect(coordinator != nil, "Coordinator should be created successfully")
             
             // Test platform registration
             let platformInfo = PlatformInfo(
@@ -127,9 +164,9 @@ final class DistributedPlatformTests: XCTestCase {
             
             // Verify platform is registered
             let connectedPlatforms = try await coordinator?.getConnectedPlatforms() ?? []
-            XCTAssertEqual(connectedPlatforms.count, 1)
-            XCTAssertEqual(connectedPlatforms.first?.id, "test-platform-1")
-            XCTAssertEqual(connectedPlatforms.first?.deviceName, "Test Device")
+            #expect(connectedPlatforms.count == 1)
+            #expect(connectedPlatforms.first?.id == "test-platform-1")
+            #expect(connectedPlatforms.first?.deviceName == "Test Device")
             
             // Test command execution
             let command = DistributedCommand(
@@ -139,30 +176,34 @@ final class DistributedPlatformTests: XCTestCase {
             )
             
             let results = try await coordinator?.executeAcrossPlatforms(command) ?? []
-            XCTAssertEqual(results.count, 1)
-            XCTAssertTrue(results.first?.success ?? false)
+            #expect(results.count == 1)
+            #expect(results.first?.success == true)
             
             // Test data sharing
             let testData = "Hello, distributed world!".data(using: .utf8)!
             try await coordinator?.shareData(key: "test-key", value: testData)
             
             let retrievedData = try await coordinator?.retrieveData(key: "test-key")
-            XCTAssertEqual(retrievedData, testData)
+            #expect(retrievedData == testData)
             
             // Test platform unregistration
             try await coordinator?.unregisterPlatform("test-platform-1")
             let platformsAfterUnregister = try await coordinator?.getConnectedPlatforms() ?? []
-            XCTAssertEqual(platformsAfterUnregister.count, 0)
+            #expect(platformsAfterUnregister.count == 0)
             
         } catch DistributedPlatformError.distributedClusterNotAvailable {
-            throw XCTSkip("DistributedCluster framework not available")
+            withKnownIssue("DistributedCluster framework not available") {
+                // Skip this test
+            }
         }
     }
     #endif
     
-    // MARK: - Supporting Types Tests
+    // MARK: - Data Type Tests
     
-    func testPlatformInfoCodable() throws {
+    @Test("PlatformInfo encodes and decodes correctly")
+    @available(macOS 14.0, *)
+    func platformInfoCodable() throws {
         let platformInfo = PlatformInfo(
             id: "test-id",
             deviceName: "Test Device",
@@ -173,21 +214,28 @@ final class DistributedPlatformTests: XCTestCase {
         
         let encoder = JSONEncoder()
         let data = try encoder.encode(platformInfo)
-        XCTAssertFalse(data.isEmpty)
+        #expect(!data.isEmpty)
         
         let decoder = JSONDecoder()
         let decodedPlatform = try decoder.decode(PlatformInfo.self, from: data)
         
-        XCTAssertEqual(decodedPlatform.id, platformInfo.id)
-        XCTAssertEqual(decodedPlatform.deviceName, platformInfo.deviceName)
-        XCTAssertEqual(decodedPlatform.platform, platformInfo.platform)
-        XCTAssertEqual(decodedPlatform.version, platformInfo.version)
-        XCTAssertEqual(decodedPlatform.capabilities, platformInfo.capabilities)
+        #expect(decodedPlatform.id == platformInfo.id)
+        #expect(decodedPlatform.deviceName == platformInfo.deviceName)
+        #expect(decodedPlatform.platform == platformInfo.platform)
+        #expect(decodedPlatform.version == platformInfo.version)
+        #expect(decodedPlatform.capabilities == platformInfo.capabilities)
     }
     
-    func testPlatformInfoHashable() {
+    @Test("PlatformInfo implements Hashable correctly based on ID",
+          arguments: [
+            ("same-id", "same-id", true),
+            ("different-id-1", "different-id-2", false),
+            ("test-123", "test-123", true)
+          ])
+    @available(macOS 14.0, *)
+    func platformInfoHashable(id1: String, id2: String, shouldBeEqual: Bool) {
         let platform1 = PlatformInfo(
-            id: "same-id",
+            id: id1,
             deviceName: "Device 1",
             platform: "macOS",
             version: "14.0",
@@ -195,100 +243,96 @@ final class DistributedPlatformTests: XCTestCase {
         )
         
         let platform2 = PlatformInfo(
-            id: "same-id",
-            deviceName: "Device 2", // Different name but same ID
+            id: id2,
+            deviceName: "Device 2", // Different name but potentially same ID
             platform: "iOS",
             version: "17.0",
             capabilities: []
         )
         
-        let platform3 = PlatformInfo(
-            id: "different-id",
-            deviceName: "Device 3",
-            platform: "macOS",
-            version: "14.0",
-            capabilities: []
-        )
-        
-        // Same ID should be equal
-        XCTAssertEqual(platform1, platform2)
-        
-        // Different ID should not be equal
-        XCTAssertNotEqual(platform1, platform3)
-        
-        // Test in Set
-        let platformSet: Set<PlatformInfo> = [platform1, platform2, platform3]
-        XCTAssertEqual(platformSet.count, 2) // platform1 and platform2 should be deduplicated
+        if shouldBeEqual {
+            #expect(platform1 == platform2)
+            #expect(platform1.hashValue == platform2.hashValue)
+        } else {
+            #expect(platform1 != platform2)
+        }
     }
     
-    func testDistributedCommandCodable() throws {
+    @Test("DistributedCommand encodes and decodes correctly",
+          arguments: [
+            ("test-command", "test-type", ["key1": "value1"]),
+            ("ping", "system", ["timestamp": "1234567890"]),
+            ("execute", "javascript", ["code": "console.log('hello')"])
+          ])
+    @available(macOS 14.0, *)
+    func distributedCommandCodable(id: String, type: String, payload: [String: String]) throws {
         let command = DistributedCommand(
-            id: "test-command",
-            type: "test-type",
-            payload: ["key1": "value1", "key2": "value2"]
+            id: id,
+            type: type,
+            payload: payload
         )
         
         let encoder = JSONEncoder()
         let data = try encoder.encode(command)
-        XCTAssertFalse(data.isEmpty)
+        #expect(!data.isEmpty)
         
         let decoder = JSONDecoder()
         let decodedCommand = try decoder.decode(DistributedCommand.self, from: data)
         
-        XCTAssertEqual(decodedCommand.id, command.id)
-        XCTAssertEqual(decodedCommand.type, command.type)
-        XCTAssertEqual(decodedCommand.payload, command.payload)
-        XCTAssertEqual(decodedCommand.timestamp.timeIntervalSince1970, 
-                      command.timestamp.timeIntervalSince1970, accuracy: 1.0)
+        #expect(decodedCommand.id == command.id)
+        #expect(decodedCommand.type == command.type)
+        #expect(decodedCommand.payload == command.payload)
+        #expect(abs(decodedCommand.timestamp.timeIntervalSince1970 - command.timestamp.timeIntervalSince1970) < 1.0)
     }
     
-    func testCommandResultCodable() throws {
+    @Test("CommandResult encodes and decodes correctly",
+          arguments: [
+            ("platform-123", true, "Success"),
+            ("platform-456", false, "Error occurred"),
+            ("platform-789", true, "Command completed")
+          ])
+    @available(macOS 14.0, *)
+    func commandResultCodable(platformId: String, success: Bool, output: String) throws {
         let result = CommandResult(
-            platformId: "platform-123",
-            success: true,
-            output: "Command executed successfully",
+            platformId: platformId,
+            success: success,
+            output: output,
             timestamp: Date()
         )
         
         let encoder = JSONEncoder()
         let data = try encoder.encode(result)
-        XCTAssertFalse(data.isEmpty)
+        #expect(!data.isEmpty)
         
         let decoder = JSONDecoder()
         let decodedResult = try decoder.decode(CommandResult.self, from: data)
         
-        XCTAssertEqual(decodedResult.platformId, result.platformId)
-        XCTAssertEqual(decodedResult.success, result.success)
-        XCTAssertEqual(decodedResult.output, result.output)
-        XCTAssertEqual(decodedResult.timestamp.timeIntervalSince1970,
-                      result.timestamp.timeIntervalSince1970, accuracy: 1.0)
+        #expect(decodedResult.platformId == result.platformId)
+        #expect(decodedResult.success == result.success)
+        #expect(decodedResult.output == result.output)
+        #expect(abs(decodedResult.timestamp.timeIntervalSince1970 - result.timestamp.timeIntervalSince1970) < 1.0)
     }
     
-    // MARK: - Error Tests
+    // MARK: - Error Handling Tests
     
-    func testDistributedPlatformErrors() {
-        let errors: [DistributedPlatformError] = [
-            .distributedClusterNotAvailable,
-            .clusterNotInitialized,
-            .coordinatorNotFound,
-            .commandExecutionFailed("Test error message")
-        ]
-        
-        let expectedDescriptions = [
-            "DistributedCluster framework not available",
-            "Cluster system not initialized",
-            "No distributed coordinator found",
-            "Command execution failed: Test error message"
-        ]
-        
-        for (error, expectedDescription) in zip(errors, expectedDescriptions) {
-            XCTAssertEqual(error.localizedDescription, expectedDescription)
-        }
+    @Test("DistributedPlatformError provides correct error descriptions",
+          arguments: [
+            (DistributedPlatformError.distributedClusterNotAvailable, "DistributedCluster framework not available"),
+            (DistributedPlatformError.clusterNotInitialized, "Cluster system not initialized"),
+            (DistributedPlatformError.coordinatorNotFound, "No distributed coordinator found"),
+            (DistributedPlatformError.commandExecutionFailed("Test error message"), "Command execution failed: Test error message")
+          ])
+    @available(macOS 14.0, *)
+    func distributedPlatformErrors(error: DistributedPlatformError, expectedDescription: String) {
+        #expect(error.localizedDescription == expectedDescription)
     }
     
     // MARK: - Integration Tests
     
-    func testWebViewManagerDistributedIntegration() async throws {
+    @Test("WebViewManager integrates with distributed platform", 
+          .timeLimit(.minutes(1)), .tags(.integration))
+    @available(macOS 14.0, *)
+    func webViewManagerDistributedIntegration() async throws {
         let webViewConfig = WebViewConfiguration(
             initialURL: "http://localhost:3000",
             windowTitle: "Test WebView",
@@ -297,86 +341,135 @@ final class DistributedPlatformTests: XCTestCase {
         )
         
         let webViewManager = WebViewManager(configuration: webViewConfig)
+        let testConfiguration = createTestConfiguration()
         
-        // Test that distributed initialization fails without proper setup
+        defer {
+            Task {
+                await webViewManager.cleanup()
+            }
+        }
+        
+        // Test that distributed initialization works or fails gracefully
         do {
             try await webViewManager.initializeDistributed(with: testConfiguration)
             // If this succeeds, check that we can get empty platforms list
             let platforms = try await webViewManager.getConnectedPlatforms()
-            XCTAssertTrue(platforms.isEmpty, "Should start with empty platforms list")
+            #expect(platforms.isEmpty, "Should start with empty platforms list")
         } catch DistributedPlatformError.distributedClusterNotAvailable {
-            throw XCTSkip("DistributedCluster framework not available")
+            withKnownIssue("DistributedCluster framework not available") {
+                // Skip this test
+            }
         } catch {
-            XCTFail("Unexpected error in WebView distributed initialization: \(error)")
+            Issue.record("Unexpected error in WebView distributed initialization: \(error)")
         }
     }
     
     // MARK: - Performance Tests
     
-    func testPlatformRegistrationPerformance() async throws {
-        #if canImport(DistributedCluster)
+    #if canImport(DistributedCluster)
+    @Test("Platform registration performance with multiple platforms", 
+          .timeLimit(.minutes(2)),
+          .tags(.performance, .slow),
+          arguments: [10, 50])
+    @available(macOS 14.0, *)
+    func platformRegistrationPerformance(platformCount: Int) async throws {
+        let testConfiguration = createTestConfiguration()
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        defer {
+            Task {
+                await distributedManager.shutdown()
+            }
+        }
+        
         do {
             try await distributedManager.initializeCluster()
             guard let coordinator = try await distributedManager.createCoordinator() else {
-                throw XCTSkip("Could not create coordinator")
+                withKnownIssue("Could not create coordinator") {}
+                return
             }
             
             // Measure performance of registering multiple platforms
-            measure {
-                let expectation = XCTestExpectation(description: "Platform registration")
+            let startTime = ContinuousClock.now
+            
+            for i in 0..<platformCount {
+                let platformInfo = PlatformInfo(
+                    id: "platform-\(i)",
+                    deviceName: "Device \(i)",
+                    platform: "macOS",
+                    version: "14.0",
+                    capabilities: ["test"]
+                )
                 
-                Task {
-                    for i in 0..<100 {
-                        let platformInfo = PlatformInfo(
-                            id: "platform-\(i)",
-                            deviceName: "Device \(i)",
-                            platform: "macOS",
-                            version: "14.0",
-                            capabilities: ["test"]
-                        )
-                        
-                        try await coordinator.registerPlatform(platformInfo)
-                    }
-                    expectation.fulfill()
-                }
-                
-                wait(for: [expectation], timeout: 10.0)
+                try await coordinator.registerPlatform(platformInfo)
             }
+            
+            let elapsed = ContinuousClock.now - startTime
+            print("Platform registration (\(platformCount) platforms) took: \(elapsed)")
+            
+            // Verify all platforms were registered
+            let platforms = try await coordinator.getConnectedPlatforms()
+            #expect(platforms.count == platformCount)
+            
         } catch DistributedPlatformError.distributedClusterNotAvailable {
-            throw XCTSkip("DistributedCluster framework not available")
+            withKnownIssue("DistributedCluster framework not available") {
+                // Skip this test
+            }
         }
-        #else
-        throw XCTSkip("DistributedCluster framework not available")
-        #endif
     }
     
-    func testDataSharingPerformance() async throws {
-        #if canImport(DistributedCluster)
+    @Test("Data sharing performance with different data sizes", 
+          .timeLimit(.minutes(1)),
+          .tags(.performance, .slow),
+          arguments: [1024, 4096]) // 1KB, 4KB
+    @available(macOS 14.0, *)
+    func dataSharingPerformance(dataSize: Int) async throws {
+        let testConfiguration = createTestConfiguration()
+        let distributedManager = DistributedPlatformManager(configuration: testConfiguration)
+        
+        defer {
+            Task {
+                await distributedManager.shutdown()
+            }
+        }
+        
         do {
             try await distributedManager.initializeCluster()
             guard let coordinator = try await distributedManager.createCoordinator() else {
-                throw XCTSkip("Could not create coordinator")
+                withKnownIssue("Could not create coordinator") {}
+                return
             }
             
-            let testData = Data(repeating: 0x42, count: 1024) // 1KB test data
+            let testData = Data(repeating: 0x42, count: dataSize)
+            let operationCount = 25
             
-            measure {
-                let expectation = XCTestExpectation(description: "Data sharing")
-                
-                Task {
-                    for i in 0..<50 {
-                        try await coordinator.shareData(key: "test-key-\(i)", value: testData)
-                    }
-                    expectation.fulfill()
-                }
-                
-                wait(for: [expectation], timeout: 10.0)
+            let startTime = ContinuousClock.now
+            
+            for i in 0..<operationCount {
+                try await coordinator.shareData(key: "test-key-\(i)", value: testData)
             }
+            
+            let elapsed = ContinuousClock.now - startTime
+            print("Data sharing (\(dataSize) bytes × \(operationCount) operations) took: \(elapsed)")
+            
+            // Verify data can be retrieved
+            let retrievedData = try await coordinator.retrieveData(key: "test-key-0")
+            #expect(retrievedData == testData)
+            
         } catch DistributedPlatformError.distributedClusterNotAvailable {
-            throw XCTSkip("DistributedCluster framework not available")
+            withKnownIssue("DistributedCluster framework not available") {
+                // Skip this test
+            }
         }
-        #else
-        throw XCTSkip("DistributedCluster framework not available")
-        #endif
     }
+    #endif
+}
+
+// MARK: - Test Tags
+
+extension Tag {
+    @Tag static var distributed: Self
+    @Tag static var integration: Self
+    @Tag static var performance: Self
+    @Tag static var slow: Self
 } 

@@ -272,7 +272,7 @@ extension DistributedReception.Key {
 
 // MARK: - Errors
 
-public enum DistributedPlatformError: Error, LocalizedError {
+public enum DistributedPlatformError: Error, LocalizedError, Equatable {
     case distributedClusterNotAvailable
     case clusterNotInitialized
     case coordinatorNotFound
