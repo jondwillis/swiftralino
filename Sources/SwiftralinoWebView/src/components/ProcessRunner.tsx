@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import { useSwiftralino } from '@/lib/swiftralino-context';
 
+interface ExecuteResult {
+  exitCode: number;
+  output: string;
+  error: string;
+}
+
 export const ProcessRunner: React.FC = () => {
   const { client, isConnected } = useSwiftralino();
   const [command, setCommand] = useState('echo');
   const [args, setArgs] = useState('Hello from Swift!');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ExecuteResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleExecuteCommand = async () => {
@@ -17,11 +23,12 @@ export const ProcessRunner: React.FC = () => {
     try {
       const argsList = args ? args.split(' ').filter((arg) => arg.trim()) : [];
       const response = await client.execute(command, argsList);
-      if (response.type === 'response') {
+      if (response.type === 'response' && response.data) {
         setResult(response.data);
       }
     } catch (error) {
-      console.error('Failed to execute command:', error);
+      // Failed to execute command - silently handle the error
+      // In production, you might want to show a user-friendly error message
     } finally {
       setLoading(false);
     }

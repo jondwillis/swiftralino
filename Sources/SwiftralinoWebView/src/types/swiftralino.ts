@@ -1,11 +1,25 @@
+// Add interface for event data types
+export interface SwiftralinoEventData {
+  connected?: undefined;
+  disconnected?: undefined;
+  error?: { error: unknown };
+}
+
+// Add interface for import.meta.env
+export interface ImportMetaEnv {
+  readonly VITE_WS_URL?: string;
+  // Add other environment variables as needed
+  [key: string]: string | undefined;
+}
+
 export interface SwiftralinoMessage {
   id: string;
   type: 'system' | 'api' | 'event' | 'response' | 'error';
   action: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
-export interface SwiftralinoResponse<T = any> {
+export interface SwiftralinoResponse<T = unknown> {
   id: string;
   type: 'response' | 'error';
   action: string;
@@ -85,7 +99,7 @@ export interface SwiftralinoAPI {
   joinCluster(endpoint: string): Promise<SwiftralinoResponse<{ status: string; endpoint: string }>>;
 
   getDistributedStatus(): Promise<
-    SwiftralinoResponse<{ initialized: boolean; [key: string]: any }>
+    SwiftralinoResponse<{ initialized: boolean; [key: string]: unknown }>
   >;
 }
 
@@ -93,13 +107,13 @@ export interface SwiftralinoClient extends SwiftralinoAPI {
   connect(): Promise<void>;
   disconnect(): void;
   isConnected(): boolean;
-  addEventListener(
-    event: 'connected' | 'disconnected' | 'error',
-    callback: (data?: any) => void
+  addEventListener<K extends keyof SwiftralinoEventData>(
+    event: K,
+    callback: (data?: SwiftralinoEventData[K]) => void
   ): void;
-  removeEventListener(
-    event: 'connected' | 'disconnected' | 'error',
-    callback: (data?: any) => void
+  removeEventListener<K extends keyof SwiftralinoEventData>(
+    event: K,
+    callback: (data?: SwiftralinoEventData[K]) => void
   ): void;
   sendMessage(message: SwiftralinoMessage): Promise<SwiftralinoResponse>;
 }

@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { useSwiftralino } from '@/lib/swiftralino-context';
 
+interface SystemInfoData {
+  operatingSystem: string;
+  hostName: string;
+  processIdentifier: number;
+  uptime: number;
+}
+
 export const SystemInfo: React.FC = () => {
   const { client, isConnected } = useSwiftralino();
-  const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [systemInfo, setSystemInfo] = useState<SystemInfoData | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleGetSystemInfo = async () => {
@@ -14,11 +21,12 @@ export const SystemInfo: React.FC = () => {
     setLoading(true);
     try {
       const response = await client.getSystemInfo();
-      if (response.type === 'response') {
+      if (response.type === 'response' && response.data) {
         setSystemInfo(response.data);
       }
     } catch (error) {
-      console.error('Failed to get system info:', error);
+      // Failed to get system info - silently handle the error
+      // In production, you might want to show a user-friendly error message
     } finally {
       setLoading(false);
     }

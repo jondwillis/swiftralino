@@ -1,0 +1,417 @@
+---
+alwaysApply: true
+---
+
+# Smart Meta-Rules for Swiftralino
+
+## Type Safety Rules
+
+### Never Use `any` Type
+
+- **Rule**: Replace `any` with specific types, `unknown`, or proper interfaces
+- **Pattern**: Create interfaces for complex objects, use `unknown` for truly
+  dynamic data
+- **Example**:
+  ```typescript
+  // ❌ Bad
+  const [result, setResult] = useState<any>(null);
+
+  // ✅ Good
+  interface ExecuteResult {
+    exitCode: number;
+    output: string;
+    error: string;
+  }
+  const [result, setResult] = useState<ExecuteResult | null>(null);
+  ```
+
+### Avoid Non-Null Assertions
+
+- **Rule**: Never use `!` operator, handle null/undefined explicitly
+- **Pattern**: Use null checks, optional chaining, or throw meaningful errors
+- **Example**:
+  ```typescript
+  // ❌ Bad
+  const root = document.getElementById("root")!;
+
+  // ✅ Good
+  const root = document.getElementById("root");
+  if (!root) throw new Error("Root element not found");
+  ```
+
+### Generic Response Typing
+
+- **Rule**: Use `unknown` as default for generic response types, cast when
+  needed
+- **Pattern**: Define response interfaces, use type assertions only when
+  necessary
+- **Example**:
+  ```typescript
+  // ✅ Good default
+  export interface SwiftralinoResponse<T = unknown> {
+    id: string;
+    type: "response" | "error";
+    data?: T;
+  }
+  ```
+
+## Error Handling & Logging
+
+### No Console Statements in Production Code
+
+- **Rule**: Remove all `console.log`, `console.error`, etc. from production code
+- **Pattern**: Use comments to document error handling, implement proper logging
+  service if needed
+- **Example**:
+  ```typescript
+  // ❌ Bad
+  } catch (error) {
+    console.error('Failed to execute:', error);
+  }
+
+  // ✅ Good
+  } catch (error) {
+    // Failed to execute - silently handle the error
+    // In production, you might want to show a user-friendly error message
+    setError(error instanceof Error ? error.message : 'Unknown error');
+  }
+  ```
+
+### Proper Error Type Handling
+
+- **Rule**: Always type error parameters as `unknown`, check type before using
+- **Pattern**: Use type guards for error handling
+- **Example**:
+  ```typescript
+  // ✅ Good
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    setError(errorMessage);
+  }
+  ```
+
+## React Patterns
+
+### Context + Hook Pattern
+
+- **Rule**: When exporting both context provider and hook, use ESLint disable
+  comment
+- **Pattern**: Keep related exports together but disable fast-refresh warning
+- **Example**:
+  ```typescript
+  // eslint-disable-next-line react-refresh/only-export-components
+  export const useSwiftralino = () => {
+    const context = useContext(SwiftralinoContext);
+    if (!context) {
+      throw new Error(
+        "useSwiftralino must be used within a SwiftralinoProvider",
+      );
+    }
+    return context;
+  };
+  ```
+
+### State Type Safety
+
+- **Rule**: Always provide explicit types for useState with complex objects
+- **Pattern**: Create interfaces for state shape, use union types for loading
+  states
+- **Example**:
+  ```typescript
+  // ✅ Good
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connecting" | "connected" | "disconnected" | "error"
+  >("disconnected");
+  ```
+
+## Import Organization
+
+### Modern Import Syntax
+
+- **Rule**: Use inline `type` imports to avoid duplicate imports
+- **Pattern**: Group type and value imports using inline syntax
+- **Example**:
+  ```typescript
+  // ✅ Good
+  import React, { createContext, type ReactNode, useContext } from "react";
+  ```
+
+### Import Typing for Meta Objects
+
+- **Rule**: Type import.meta usage properly with interfaces
+- **Pattern**: Create interfaces for environment variables and meta objects
+- **Example**:
+  ```typescript
+  interface ImportMetaEnv {
+    readonly VITE_WS_URL?: string;
+    [key: string]: string | undefined;
+  }
+
+  const env = (import.meta as unknown as { env: ImportMetaEnv }).env;
+  ```
+
+## API Client Patterns
+
+### WebSocket State Management
+
+- **Rule**: Handle WebSocket state checks before sending messages
+- **Pattern**: Check connection state AND readyState before operations
+- **Example**:
+  ```typescript
+  const ws = this.ws;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+  } else {
+    throw new Error("WebSocket is not ready");
+  }
+  ```
+
+### Event Listener Typing
+
+- **Rule**: Use generic constraints for event listeners with proper typing
+- **Pattern**: Define event data interfaces, use generic methods
+- **Example**:
+  ```typescript
+  addEventListener<K extends keyof SwiftralinoEventData>(
+    event: K,
+    callback: (data?: SwiftralinoEventData[K]) => void
+  ): void
+  ```
+
+## Component Architecture
+
+### Null Checks Before State Updates
+
+- **Rule**: Always check for data existence before setting state
+- **Pattern**: Use && operator for existence checks in API responses
+- **Example**:
+  ```typescript
+  // ✅ Good
+  if (response.type === "response" && response.data) {
+    setResult(response.data);
+  }
+  ```
+
+### Interface Definition Location
+
+- **Rule**: Define component-specific interfaces at the top of the file
+- **Pattern**: Create interfaces for props, state shapes, and API responses
+  within each component
+- **Example**:
+  ```typescript
+  interface ExecuteResult {
+    exitCode: number;
+    output: string;
+    error: string;
+  }
+
+  export const ProcessRunner: React.FC = () => {
+    const [result, setResult] = useState<ExecuteResult | null>(null);
+  ```
+
+## Code Quality Standards
+
+### Unused Variables
+
+- **Rule**: Prefix unused parameters with underscore
+- **Pattern**: Use `_error`, `_event` etc. for unused but required parameters
+- **Example**:
+  ```typescript
+  swiftralinoClient.connect().catch((_error: unknown) => {
+    setConnectionStatus("error");
+  });
+  ```
+
+### Destructuring Preferences
+
+- **Rule**: Use object destructuring for repeated property access
+- **Pattern**: Extract commonly used properties from objects
+- **Example**:
+  ```typescript
+  // ✅ Good - when suggested by linter
+  const { eventListeners } = this;
+  const listeners = eventListeners.get(event);
+  ```
+
+## SwiftUI Integration Considerations
+
+### Platform-Agnostic Error Messages
+
+- **Rule**: Use generic, user-friendly error messages that work across platforms
+- **Pattern**: Avoid platform-specific language or references
+- **Example**:
+  ```typescript
+  // ✅ Good - works on iOS, macOS, web
+  setError("Connection failed. Please check your network and try again.");
+  ```
+
+### Distributed System Patterns
+
+- **Rule**: Handle partial failures gracefully in distributed operations
+- **Pattern**: Show progress, handle individual platform failures
+- **Example**:
+  ```typescript
+  // Handle mixed success/failure results
+  const results = response.data.results;
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
+  ```
+
+## Swiftralino-Specific Patterns
+
+### WebSocket Client Implementation
+
+- **Rule**: Always implement proper connection state management
+- **Pattern**: Track both `isConnected` boolean and WebSocket `readyState`
+- **Example**:
+  ```typescript
+  // ✅ Good connection check
+  if (
+    !this.isConnectedState || !this.ws || this.ws.readyState !== WebSocket.OPEN
+  ) {
+    throw new Error("WebSocket is not ready");
+  }
+  ```
+
+### Message ID Generation
+
+- **Rule**: Use crypto.randomUUID() for message IDs, provide fallback if needed
+- **Pattern**: Consistent ID generation across all message types
+- **Example**:
+  ```typescript
+  const messageId = message.id || crypto.randomUUID();
+  ```
+
+### Distributed Platform Error Handling
+
+- **Rule**: Handle individual platform failures without breaking the entire
+  operation
+- **Pattern**: Process results arrays, separate successful from failed
+  operations
+- **Example**:
+  ```typescript
+  // ✅ Good - handle mixed results
+  if (response.type === "response" && response.data) {
+    const results = response.data.results;
+    setExecutionResults(results); // Show all results, including failures
+  }
+  ```
+
+### Timeout Management
+
+- **Rule**: Always set reasonable timeouts for async operations
+- **Pattern**: Use 30-second timeouts for API calls, clear timeouts on cleanup
+- **Example**:
+  ```typescript
+  setTimeout(() => {
+    if (this.pendingRequests.has(messageId)) {
+      this.pendingRequests.delete(messageId);
+      reject(new Error("Request timeout"));
+    }
+  }, 30000);
+  ```
+
+## Architecture Guidelines
+
+### File Structure for React Components
+
+- **Rule**: Group related interfaces at the top, followed by component logic
+- **Pattern**: Keep component-specific types close to their usage
+- **Structure**:
+  ```typescript
+  // 1. Imports
+  import React, { useState } from 'react';
+
+  // 2. Interfaces/Types
+  interface ComponentProps { ... }
+  interface StateShape { ... }
+
+  // 3. Component
+  export const Component: React.FC<ComponentProps> = ({ ... }) => {
+  ```
+
+### Context Pattern Best Practices
+
+- **Rule**: Always provide meaningful error messages for context usage outside
+  provider
+- **Pattern**: Include component name and provider name in error messages
+- **Example**:
+  ```typescript
+  if (!context) {
+    throw new Error("useSwiftralino must be used within a SwiftralinoProvider");
+  }
+  ```
+
+### Configuration Object Patterns
+
+- **Rule**: Use spread operator with defaults for configuration merging
+- **Pattern**: Provide sensible defaults, allow partial overrides
+- **Example**:
+  ```typescript
+  const config: SwiftralinoConfig = {
+    wsUrl: env?.VITE_WS_URL || "ws://127.0.0.1:8080/bridge",
+    reconnectAttempts: 5,
+    reconnectDelay: 2000,
+    ...userConfig, // Override defaults
+  };
+  ```
+
+## Performance Considerations
+
+### Event Listener Management
+
+- **Rule**: Always clean up event listeners in useEffect cleanup
+- **Pattern**: Return cleanup function from useEffect
+- **Example**:
+  ```typescript
+  useEffect(() => {
+    const handleEvent = () => { ... };
+    client.addEventListener('connected', handleEvent);
+    
+    return () => {
+      client.removeEventListener('connected', handleEvent);
+    };
+  }, [client]);
+  ```
+
+### State Update Optimization
+
+- **Rule**: Batch related state updates when possible
+- **Pattern**: Use functional updates for state that depends on previous state
+- **Example**:
+  ```typescript
+  // ✅ Good - batch updates
+  setClient(swiftralinoClient);
+  setConnectionStatus("connecting");
+  ```
+
+## Testing Implications
+
+### Testable Error Handling
+
+- **Rule**: Structure error handling to be easily testable
+- **Pattern**: Extract error message formatting, make async operations mockable
+- **Example**:
+  ```typescript
+  // ✅ Good - testable error formatting
+  const formatError = (error: unknown): string => {
+    return error instanceof Error ? error.message : "Unknown error";
+  };
+  ```
+
+### Mock-Friendly API Design
+
+- **Rule**: Design WebSocket client to be easily mockable
+- **Pattern**: Use dependency injection for WebSocket constructor
+- **Example**:
+  ```typescript
+  // ✅ Good - allows for easy mocking in tests
+  constructor(config: SwiftralinoConfig, WebSocketConstructor = WebSocket) {
+    this.ws = new WebSocketConstructor(config.wsUrl);
+  }
+  ```
+
+---
+
+**Generated from ESLint fixes on** `$(date)` - These rules capture real patterns
+discovered during comprehensive linting cleanup that reduced 35 problems to 0.

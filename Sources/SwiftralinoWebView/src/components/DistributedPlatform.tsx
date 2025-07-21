@@ -29,9 +29,7 @@ export const DistributedPlatform: React.FC = () => {
   const [port, setPort] = useState(7337);
 
   // Execution state
-  const [scriptToExecute, setScriptToExecute] = useState(
-    'console.log("Hello from all platforms!");'
-  );
+  const [scriptToExecute, setScriptToExecute] = useState('print("Hello from all platforms!")');
   const [executionResults, setExecutionResults] = useState<ExecutionResult[]>([]);
 
   // Data sharing state
@@ -64,7 +62,7 @@ export const DistributedPlatform: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to check distributed status:', error);
+      // Failed to check distributed status - silently handle the error
     }
   };
 
@@ -90,7 +88,7 @@ export const DistributedPlatform: React.FC = () => {
         setError('Failed to initialize distributed cluster');
       }
     } catch (error) {
-      console.error('Failed to initialize distributed cluster:', error);
+      // Failed to initialize distributed cluster
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -108,7 +106,7 @@ export const DistributedPlatform: React.FC = () => {
         setPlatforms(response.data.platforms);
       }
     } catch (error) {
-      console.error('Failed to refresh platforms:', error);
+      // Failed to refresh platforms - silently handle the error
     }
   };
 
@@ -128,7 +126,7 @@ export const DistributedPlatform: React.FC = () => {
         setError('Failed to execute script on platforms');
       }
     } catch (error) {
-      console.error('Failed to execute script:', error);
+      // Failed to execute script
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -153,7 +151,7 @@ export const DistributedPlatform: React.FC = () => {
         setError('Failed to share data');
       }
     } catch (error) {
-      console.error('Failed to share data:', error);
+      // Failed to share data
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -176,7 +174,7 @@ export const DistributedPlatform: React.FC = () => {
         setError('Failed to retrieve data');
       }
     } catch (error) {
-      console.error('Failed to retrieve data:', error);
+      // Failed to retrieve data
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -200,7 +198,7 @@ export const DistributedPlatform: React.FC = () => {
         setError('Failed to join cluster');
       }
     } catch (error) {
-      console.error('Failed to join cluster:', error);
+      // Failed to join cluster
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);

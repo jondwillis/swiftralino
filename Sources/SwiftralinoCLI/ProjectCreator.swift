@@ -213,7 +213,9 @@ public struct ProjectCreator {
                 
                 // Load configuration
                 guard let config = try? SwiftralinoConfig.load() else {
-                    fatalError("Failed to load swiftralino.json configuration")
+                    print("❌ Failed to load swiftralino.json configuration")
+                    print("   Make sure you're running from a Swiftralino project directory")
+                    exit(1)
                 }
                 
                 // Create application configuration

@@ -151,7 +151,8 @@ public actor WebServer {
         
         // Handle client disconnection
         ws.onClose.whenComplete { [weak self] _ in
-            Task {
+            guard let self = self else { return }
+            Task { [weak self] in
                 await self?.handleClientDisconnection(ws)
             }
         }

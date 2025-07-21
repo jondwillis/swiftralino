@@ -1,6 +1,5 @@
 ---
-description: 
-globs: 
 alwaysApply: true
 ---
+
 Idiomatic Swift, following recommended SwiftLint rules.

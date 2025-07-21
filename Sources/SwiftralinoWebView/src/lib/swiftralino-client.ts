@@ -3,6 +3,7 @@ import type {
   SwiftralinoMessage,
   SwiftralinoResponse,
   SwiftralinoConfig,
+  SwiftralinoEventData,
 } from '@/types/swiftralino';
 
 export class WebSocketSwiftralinoClient implements SwiftralinoClient {
@@ -16,7 +17,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
       reject: (error: Error) => void;
     }
   >();
-  private eventListeners = new Map<string, Set<(data?: any) => void>>();
+  private eventListeners = new Map<string, Set<(data?: unknown) => void>>();
   private reconnectTimeoutId: number | null = null;
   private reconnectAttempts = 0;
 
@@ -30,7 +31,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
         this.ws = new WebSocket(this.config.wsUrl);
 
         this.ws.onopen = () => {
-          console.log('🔌 Connected to Swiftralino backend');
+          // Connected to Swiftralino backend
           this.isConnectedState = true;
           this.reconnectAttempts = 0;
           this.dispatchEvent('connected');
@@ -42,14 +43,14 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
         };
 
         this.ws.onclose = () => {
-          console.log('🔌 Disconnected from Swiftralino backend');
+          // Disconnected from Swiftralino backend
           this.isConnectedState = false;
           this.dispatchEvent('disconnected');
           this.attemptReconnect();
         };
 
         this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          // WebSocket error occurred
           this.dispatchEvent('error', { error });
           reject(new Error('WebSocket connection failed'));
         };
@@ -76,21 +77,24 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     return this.isConnectedState;
   }
 
-  addEventListener(
-    event: 'connected' | 'disconnected' | 'error',
-    callback: (data?: any) => void
+  addEventListener<K extends keyof SwiftralinoEventData>(
+    event: K,
+    callback: (data?: SwiftralinoEventData[K]) => void
   ): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
-    this.eventListeners.get(event)!.add(callback);
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.add(callback as (data?: unknown) => void);
+    }
   }
 
-  removeEventListener(
-    event: 'connected' | 'disconnected' | 'error',
-    callback: (data?: any) => void
+  removeEventListener<K extends keyof SwiftralinoEventData>(
+    event: K,
+    callback: (data?: SwiftralinoEventData[K]) => void
   ): void {
-    this.eventListeners.get(event)?.delete(callback);
+    this.eventListeners.get(event)?.delete(callback as (data?: unknown) => void);
   }
 
   async sendMessage(message: SwiftralinoMessage): Promise<SwiftralinoResponse> {
@@ -104,7 +108,13 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
 
       this.pendingRequests.set(messageId, { resolve, reject });
 
-      this.ws!.send(JSON.stringify(messageWithId));
+      const { ws } = this;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(messageWithId));
+      } else {
+        reject(new Error('WebSocket is not ready'));
+        return;
+      }
 
       // Timeout after 30 seconds
       setTimeout(() => {
@@ -274,7 +284,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
   }
 
   async getDistributedStatus(): Promise<
-    SwiftralinoResponse<{ initialized: boolean; [key: string]: any }>
+    SwiftralinoResponse<{ initialized: boolean; [key: string]: unknown }>
   > {
     return this.sendMessage({
       id: crypto.randomUUID(),
@@ -293,18 +303,27 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
         this.pendingRequests.delete(message.id);
 
         if (message.type === 'error') {
-          pendingRequest.reject(new Error(message.data?.message || 'Unknown error'));
+          const errorMessage =
+            typeof message.data === 'object' && message.data && 'message' in message.data
+              ? String(message.data.message)
+              : 'Unknown error';
+          pendingRequest.reject(new Error(errorMessage));
         } else {
           pendingRequest.resolve(message);
         }
       }
     } catch (error) {
-      console.error('Failed to parse message:', error);
+      // Failed to parse message - silently ignore malformed messages
+      // In production, you might want to log this to a proper logging service
     }
   }
 
-  private dispatchEvent(event: string, data?: any): void {
-    this.eventListeners.get(event)?.forEach((callback) => callback(data));
+  private dispatchEvent<K extends keyof SwiftralinoEventData>(
+    event: K,
+    data?: SwiftralinoEventData[K]
+  ): void {
+    const listeners = this.eventListeners.get(event);
+    listeners?.forEach((callback) => callback(data));
   }
 
   private attemptReconnect(): void {
@@ -313,9 +332,7 @@ export class WebSocketSwiftralinoClient implements SwiftralinoClient {
     }
 
     this.reconnectAttempts++;
-    console.log(
-      `Reconnecting... (attempt ${this.reconnectAttempts}/${this.config.reconnectAttempts})`
-    );
+    // Attempting reconnection with retry count
 
     this.reconnectTimeoutId = window.setTimeout(() => {
       this.connect().catch(() => {

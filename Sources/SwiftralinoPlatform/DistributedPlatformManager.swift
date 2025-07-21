@@ -107,7 +107,7 @@ public class DistributedPlatformManager {
     
     /// Shutdown the cluster
     public func shutdown() async {
-        try? clusterSystem?.shutdown()
+        _ = try? clusterSystem?.shutdown()
         clusterSystem = nil
         print("🛑 Distributed cluster shutdown")
     }

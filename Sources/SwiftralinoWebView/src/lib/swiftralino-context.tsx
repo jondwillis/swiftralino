@@ -1,7 +1,6 @@
-import type { ReactNode } from 'react';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { WebSocketSwiftralinoClient } from './swiftralino-client';
-import type { SwiftralinoClient, SwiftralinoConfig } from '@/types/swiftralino';
+import type { SwiftralinoClient, SwiftralinoConfig, ImportMetaEnv } from '@/types/swiftralino';
 
 interface SwiftralinoContextType {
   client: SwiftralinoClient | null;
@@ -15,6 +14,7 @@ const SwiftralinoContext = createContext<SwiftralinoContextType>({
   connectionStatus: 'disconnected',
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSwiftralino = () => {
   const context = useContext(SwiftralinoContext);
   if (!context) {
@@ -39,8 +39,9 @@ export const SwiftralinoProvider: React.FC<SwiftralinoProviderProps> = ({
   >('disconnected');
 
   useEffect(() => {
+    const { env } = import.meta as unknown as { env: ImportMetaEnv };
     const config: SwiftralinoConfig = {
-      wsUrl: (import.meta as any).env?.VITE_WS_URL || 'ws://127.0.0.1:8080/bridge',
+      wsUrl: env?.VITE_WS_URL || 'ws://127.0.0.1:8080/bridge',
       reconnectAttempts: 5,
       reconnectDelay: 2000,
       ...userConfig,
@@ -67,8 +68,8 @@ export const SwiftralinoProvider: React.FC<SwiftralinoProviderProps> = ({
     setConnectionStatus('connecting');
 
     // Connect to backend
-    swiftralinoClient.connect().catch((error: any) => {
-      console.error('Failed to connect to Swiftralino backend:', error);
+    swiftralinoClient.connect().catch((_error: unknown) => {
+      // Connection failed - set error state
       setConnectionStatus('error');
     });
 

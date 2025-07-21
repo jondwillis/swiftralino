@@ -19,7 +19,8 @@ export const FileExplorer: React.FC = () => {
         setFiles(response.data.files);
       }
     } catch (error) {
-      console.error('Failed to read directory:', error);
+      // Failed to read directory - silently handle the error
+      // In production, you might want to show a user-friendly error message
     } finally {
       setLoading(false);
     }
