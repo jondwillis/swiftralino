@@ -10,6 +10,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  SWIFT_VERSION: '5.10'
 
 jobs:
   # Docker build and push (Linux - cheapest)
@@ -63,7 +64,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     container:
-      image: swift:5.9
+      image: swift:5.10
     steps:
     - name: Checkout
       uses: actions/checkout@v4
