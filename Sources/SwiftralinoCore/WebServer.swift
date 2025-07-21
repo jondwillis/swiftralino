@@ -71,11 +71,7 @@ public actor WebServer {
         try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
         
         // Shutdown the server gracefully
-        do {
-            await app.server.shutdown()
-        } catch {
-            print("⚠️ Error during server shutdown: \(error)")
-        }
+        await app.server.shutdown()
         
         // Clear the app reference
         self.app = nil

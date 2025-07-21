@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Swiftralino",
     platforms: [
-        .macOS(.v12),
+        .macOS(.v14), // Required for distributed actors functionality
     ],
     products: [
         // CLI tool (main executable)
@@ -45,6 +45,11 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.89.0"),
         // Command line argument parsing for CLI
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+        
+        // ⚠️  WARNING: Using branch-based dependencies - NOT stable, can break at any time!
+        // Swift Distributed Actors requires main branch dependencies, not released versions
+        // This is experimental functionality that should NOT be used in production
+        .package(url: "https://github.com/apple/swift-distributed-actors.git", branch: "main"),
     ],
     targets: [
         // Main executable target (demo app)
@@ -92,6 +97,7 @@ let package = Package(
             dependencies: [
                 "SwiftralinoCore",
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "DistributedCluster", package: "swift-distributed-actors"),
                 // Using Vapor's built-in WebSocketKit instead of Starscream
             ],
             path: "Sources/SwiftralinoPlatform"
